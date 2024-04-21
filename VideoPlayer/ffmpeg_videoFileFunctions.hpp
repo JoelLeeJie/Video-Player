@@ -2,6 +2,8 @@
 #define FFMPEG_VIDEOFILEFUNCTIONS_HPP
 #include "types.hpp"
 #include <string>
+#include <vector>
+struct StreamData; //forward declaration
 class VideoFile
 {
 public:
@@ -16,11 +18,19 @@ public:
 	VideoFile& operator=(const VideoFile& rhs) = delete;
 
 	void PrintDetails(std::ostream& output);
-
+	bool checkIsValid(std::string &outputMessage);
 private:
 	AVFormatContext* videoContainer = nullptr;
-	AVStream** videoStreamArray = nullptr; //points to the videoContainer's variable, so no need dealloc.
+	std::vector<StreamData> streamArr{}; //Need to dealloc codecContext.
+};
 
+//Relevant attributes for each individual stream. 
+struct StreamData
+{
+	AVStream* stream; //Audio/Video stream to read from. Pointer to stream in videoContainer (AVFormatContext).
+	AVCodec* codec; 
+	AVCodecParameters* codecParam; //Details of codec
+	AVCodecContext* codecContext; //Used to decode compressed packets. Need to alloc/dealloc memory for this variable.
 };
 
 AVFormatContext* GetAVFormat(const std::string &fileName);
