@@ -1,2 +1,5 @@
-﻿  main.cpp
+﻿  ffmpeg_videoFileFunctions.cpp
+  ffmpeg_videoFileFunctions.hpp
+  Generating Code...
+x64\Debug\ffmpeg_videoFileFunctions.obj : warning LNK4042: object specified more than once; extras ignored
   VideoPlayer.vcxproj -> C:\Users\onwin\source\repos\VideoPlayer\bin\VideoPlayer.exe
