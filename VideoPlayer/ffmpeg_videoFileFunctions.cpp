@@ -27,6 +27,7 @@ VideoFile::VideoFile(const std::string &fileName)
 	{
 		streamArr.push_back({});
 		StreamData& streamData = streamArr.back();
+		streamData.stream = videoContainer->streams[i];
 		//For each stream, find the codec param to find the codec id, and use it to find the codec.
 		streamData.codecParam = videoContainer->streams[i]->codecpar;
 		streamData.codec = avcodec_find_decoder(videoContainer->streams[i]->codecpar->codec_id);
@@ -114,4 +115,57 @@ AVFrame* VideoFile::GetFrame(int index)
 	}
 	//read successful.
 	return stream.currFrame;
+}
+
+int64_t VideoFile::GetVideoDuration()
+{
+	return videoContainer->duration;
+}
+
+double VideoFile::GetCurrentPTSTIME(int index)
+{
+	return (streamArr[index].stream->time_base.num * streamArr[index].currFrame->pts)/static_cast<double>(streamArr[index].stream->time_base.den);
+}
+
+
+int VideoFile::GetAudioStreamIndex()
+{
+	int returnVal{};
+	for (const StreamData &streamData : streamArr)
+	{
+		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_AUDIO)
+		{
+			return returnVal;
+		}
+		returnVal++;
+	}
+	return -1;
+}
+int VideoFile::GetVideoStreamIndex()
+{
+	int returnVal{};
+	for (const StreamData& streamData : streamArr)
+	{
+		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_VIDEO)
+		{
+			return returnVal;
+		}
+		returnVal++;
+	}
+	return -1;
+}
+
+SDL_Rect VideoFile::GetVideoDimensions()
+{
+	SDL_Rect returnVal{};
+	for (const StreamData& streamData : streamArr)
+	{
+		switch (streamData.codecParam->codec_type)
+		{
+		case AVMEDIA_TYPE_VIDEO:
+			returnVal.w = streamData.codecParam->width;
+			returnVal.h = streamData.codecParam->height;
+		}
+	}
+	return returnVal;
 }

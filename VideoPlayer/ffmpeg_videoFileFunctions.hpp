@@ -20,7 +20,14 @@ public:
 	void PrintDetails(std::ostream& output);
 	bool checkIsValid(std::string& outputMessage);
 	AVFrame* GetFrame(int index); //Gets frame for that specific stream in the streamArr.
+	int64_t GetVideoDuration();
+	double GetCurrentPTSTIME(int index);
+	
+	int GetAudioStreamIndex();
+	int GetVideoStreamIndex();
+	SDL_Rect GetVideoDimensions();
 
+private:
 	AVFormatContext* videoContainer = nullptr;
 	std::vector<StreamData> streamArr{}; //Need to dealloc codecContext.
 };
