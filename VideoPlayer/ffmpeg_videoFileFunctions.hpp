@@ -18,8 +18,9 @@ public:
 	VideoFile& operator=(const VideoFile& rhs) = delete;
 
 	void PrintDetails(std::ostream& output);
-	bool checkIsValid(std::string &outputMessage);
-private:
+	bool checkIsValid(std::string& outputMessage);
+	AVFrame* GetFrame(int index); //Gets frame for that specific stream in the streamArr.
+
 	AVFormatContext* videoContainer = nullptr;
 	std::vector<StreamData> streamArr{}; //Need to dealloc codecContext.
 };
@@ -31,6 +32,9 @@ struct StreamData
 	AVCodec* codec; 
 	AVCodecParameters* codecParam; //Details of codec
 	AVCodecContext* codecContext; //Used to decode compressed packets. Need to alloc/dealloc memory for this variable.
+	//temporary variables used to store data//
+	AVPacket* currPacket; //Need to alloc.
+	AVFrame* currFrame; //Need to alloc.
 };
 
 AVFormatContext* GetAVFormat(const std::string &fileName);

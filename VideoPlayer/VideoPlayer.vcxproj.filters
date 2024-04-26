@@ -21,11 +21,17 @@
     <ClCompile Include="ffmpeg_videoFileFunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ffmpeg_videoFileFunctions.hpp">
-      <Filter>Header Files</Filter>
+    <ClCompile Include="Display.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Display.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ffmpeg_videoFileFunctions.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="types.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

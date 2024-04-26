@@ -143,11 +143,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Display.cpp" />
     <ClCompile Include="ffmpeg_videoFileFunctions.cpp" />
-    <ClCompile Include="ffmpeg_videoFileFunctions.hpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Display.hpp" />
+    <ClInclude Include="ffmpeg_videoFileFunctions.hpp" />
     <ClInclude Include="types.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

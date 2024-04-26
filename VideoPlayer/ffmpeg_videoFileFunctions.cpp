@@ -35,6 +35,9 @@ VideoFile::VideoFile(const std::string &fileName)
 		//Assigning data to context.
 		avcodec_parameters_to_context(streamData.codecContext, streamData.codecParam);
 		avcodec_open2(streamData.codecContext, streamData.codec, NULL);
+		//Just alloc memory for these two, no need to update.
+		streamData.currPacket = av_packet_alloc();
+		streamData.currFrame = av_frame_alloc();
 	}
 }
 
@@ -42,8 +45,10 @@ VideoFile::~VideoFile()
 {
 	for (StreamData& streamData : streamArr)
 	{
-		//Only need to dealloc codecContext here.
+		//Only dealloc these items, the rest is done in free_context.
 		if (streamData.codecContext) avcodec_free_context(&streamData.codecContext);
+		if (streamData.currPacket) av_packet_free(&streamData.currPacket);
+		if (streamData.currFrame) av_frame_free(&streamData.currFrame);
 	}
 	if (videoContainer) avformat_free_context(videoContainer);
 }
@@ -51,8 +56,8 @@ VideoFile::~VideoFile()
 void VideoFile::PrintDetails(std::ostream& output)
 {
 	output << "Title: " << videoContainer->iformat->long_name << "\n"
-		<< "Duration: " << videoContainer->duration << " secs\n"
-		<< "Stream Data\n";
+		<< "Duration: " << videoContainer->duration/AV_TIME_BASE << " secs\n"
+		<< "\n<<Stream Data>>\n";
 	for (const StreamData& streamData : streamArr)
 	{
 		switch (streamData.codecParam->codec_type)
@@ -78,3 +83,35 @@ bool VideoFile::checkIsValid(std::string& outputMessage)
 	return true;
 }
 
+
+//Returns nullptr if no frame can be read.
+AVFrame* VideoFile::GetFrame(int index)
+{
+	StreamData& stream = streamArr[index];
+	int errVal{};
+	while ((errVal = avcodec_receive_frame(stream.codecContext, stream.currFrame)) != 0)
+	{
+		//Not successful,try to resolve.
+		switch (errVal)
+		{
+		//Send a new packet, since incomplete frame.
+		case AVERROR(EAGAIN):
+			//error reading packet, maybe reached eof?
+			if (av_read_frame(videoContainer, stream.currPacket) < 0)
+			{
+				return nullptr;
+			}
+			if ((errVal = avcodec_send_packet(stream.codecContext, stream.currPacket)) == 0)
+			{
+				continue; //try to read again.
+			}
+			//unable to send packet, and no frames can be read either, unable to resolve.
+			return nullptr;
+		//Unable to resolve.
+		default:
+			return nullptr;
+		}
+	}
+	//read successful.
+	return stream.currFrame;
+}
