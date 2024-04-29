@@ -19,23 +19,44 @@ public:
 
 	void PrintDetails(std::ostream& output);
 	bool checkIsValid(std::string& outputMessage);
-	AVFrame* GetFrame(int index); //Gets frame for that specific stream in the streamArr.
+	
+	/*
+	Gets an AvFrame for that particular stream.
+	*/
+	AVFrame* GetFrame(int index);
 	int64_t GetVideoDuration();
+
+	/*
+	* Gets the current frame's ptsTime for that stream. Use for synchronisation.
+	*/
 	double GetCurrentPTSTIME(int index);
 	
+	/*Returns -1 if none found*/
 	int GetAudioStreamIndex();
+
+	/*Returns -1 if none found*/
 	int GetVideoStreamIndex();
+
 	SDL_Rect GetVideoDimensions();
+
+	/*
+	Will destroy the old frame, leaving the new frame in its place.
+	*/
+	void ResizeVideoFrame(AVFrame*& originalFrame, int width, int height);
 
 private:
 	AVFormatContext* videoContainer = nullptr;
 	std::vector<StreamData> streamArr{}; //Need to dealloc codecContext.
+	
+	//Used to resize and convert video using sws_scale.
+	//Allocated and deallocated when used.
+	struct SwsContext* video_resizeconvert_sws_ctxt = nullptr; 
 };
 
 //Relevant attributes for each individual stream. 
 struct StreamData
 {
-	AVStream* stream; //Audio/Video stream to read from. Pointer to stream in videoContainer (AVFormatContext).
+	AVStream* stream; //Audio/Video/other stream to read from. Pointer to the stream in videoContainer (AVFormatContext).
 	AVCodec* codec; 
 	AVCodecParameters* codecParam; //Details of codec
 	AVCodecContext* codecContext; //Used to decode compressed packets. Need to alloc/dealloc memory for this variable.

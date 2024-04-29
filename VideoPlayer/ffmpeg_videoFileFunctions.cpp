@@ -1,28 +1,42 @@
 #include "ffmpeg_videoFileFunctions.hpp"
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <exception>
 
 AVFormatContext* GetAVFormat(const std::string &fileName)
 {
 	AVFormatContext* returnVal = avformat_alloc_context();
-	avformat_open_input(&returnVal, fileName.c_str(), NULL, NULL);
+	int err;
+	if ((err = avformat_open_input(&returnVal, fileName.c_str(), NULL, NULL)) != 0)
+	{
+		std::string msg = "Error opening video file: AVERROR ";
+		msg += err;
+		throw std::invalid_argument(msg); //TODO: catch and display ("Video not found") message box to user instead.
+	}
 	return returnVal;
 }
 
 VideoFile::VideoFile(const std::string &fileName)
 {
 	//1. Point to the video file
-	videoContainer = GetAVFormat(fileName);
-	//Don't carry on with opening the rest.
-	if (videoContainer == nullptr) {
-		return;
+	try
+	{
+		videoContainer = GetAVFormat(fileName);
 	}
-	//2. Open video/audio streams. 
-	avformat_find_stream_info(videoContainer, NULL);
+	catch (std::invalid_argument& e)
+	{
+		throw e; //Unable to open file.
+	}
 
-	//3. Get the codec data for each stream.
-	//Iterate over each stream in the array.
+	//2. Open video/audio streams. 
+	if (avformat_find_stream_info(videoContainer, NULL) < 0)
+	{
+		throw std::exception("Unable to open video streams");
+	}
+
+	//3. Get the codec data/context for each stream.
+	//Iterate over each stream in the array and fill in streamData for streamArr.
 	for (unsigned int i = 0; i < videoContainer->nb_streams; i++)
 	{
 		streamArr.push_back({});
@@ -35,7 +49,7 @@ VideoFile::VideoFile(const std::string &fileName)
 		streamData.codecContext = avcodec_alloc_context3(streamData.codec);
 		//Assigning data to context.
 		avcodec_parameters_to_context(streamData.codecContext, streamData.codecParam);
-		avcodec_open2(streamData.codecContext, streamData.codec, NULL);
+		if(avcodec_open2(streamData.codecContext, streamData.codec, NULL)!=0) throw std::exception("Unable to set codecContext");
 		//Just alloc memory for these two, no need to update.
 		streamData.currPacket = av_packet_alloc();
 		streamData.currFrame = av_frame_alloc();
@@ -51,6 +65,7 @@ VideoFile::~VideoFile()
 		if (streamData.currPacket) av_packet_free(&streamData.currPacket);
 		if (streamData.currFrame) av_frame_free(&streamData.currFrame);
 	}
+	if (video_resizeconvert_sws_ctxt) sws_freeContext(video_resizeconvert_sws_ctxt);
 	if (videoContainer) avformat_free_context(videoContainer);
 }
 
@@ -119,12 +134,12 @@ AVFrame* VideoFile::GetFrame(int index)
 
 int64_t VideoFile::GetVideoDuration()
 {
-	return videoContainer->duration;
+	return videoContainer->duration / AV_TIME_BASE;
 }
 
 double VideoFile::GetCurrentPTSTIME(int index)
 {
-	return (streamArr[index].stream->time_base.num * streamArr[index].currFrame->pts)/static_cast<double>(streamArr[index].stream->time_base.den);
+	return static_cast<double>(streamArr[index].stream->time_base.num/static_cast<double>(streamArr[index].stream->time_base.den) * static_cast<double>(streamArr[index].currFrame->pts));
 }
 
 
@@ -139,7 +154,7 @@ int VideoFile::GetAudioStreamIndex()
 		}
 		returnVal++;
 	}
-	return -1;
+	return -1; //No audio stream found.
 }
 int VideoFile::GetVideoStreamIndex()
 {
@@ -152,7 +167,7 @@ int VideoFile::GetVideoStreamIndex()
 		}
 		returnVal++;
 	}
-	return -1;
+	return -1; //No video stream found.
 }
 
 SDL_Rect VideoFile::GetVideoDimensions()
@@ -168,4 +183,50 @@ SDL_Rect VideoFile::GetVideoDimensions()
 		}
 	}
 	return returnVal;
+}
+
+void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
+{
+	if (!originalFrame) return;
+	//Checks if a new context needs to be allocated.
+	static int prevWidth{}, prevHeight{};
+
+	int videoStreamIndex = GetVideoStreamIndex();
+	if (videoStreamIndex < 0) //No video stream found
+	{
+		throw std::exception("No video stream to resize");
+	}
+	StreamData& videoStreamData = streamArr[videoStreamIndex];
+
+	//Need to reallocate context, either dimensions changed or it's a new video file(i.e. none allocated yet).
+	if (prevWidth != width || prevHeight != height || video_resizeconvert_sws_ctxt == nullptr)
+	{
+		if (video_resizeconvert_sws_ctxt) sws_freeContext(video_resizeconvert_sws_ctxt);
+		video_resizeconvert_sws_ctxt = sws_getContext(
+			videoStreamData.codecContext->width, videoStreamData.codecContext->height, videoStreamData.codecContext->pix_fmt, 
+			width, height, AV_PIX_FMT_YUV420P, //Change to new height and YUV420P format(standardised to follow sdl display)
+			SWS_BICUBIC, //better quality than billinear
+			NULL,
+			NULL,
+			NULL);
+		prevWidth = width;
+		prevHeight = height;
+		if (video_resizeconvert_sws_ctxt) std::exception("Unable to get resize sws_context");
+	}
+
+	//Allocates a new frame with new format and dimensions.
+	//Used as return value.
+	AVFrame* tempFrame = av_frame_alloc();
+	int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, width, height, 1);
+	uint8_t* frame2_buffer = (uint8_t*)av_malloc(num_bytes);
+	//"Fills" the temp frame with rest of the required memory(av_frame_alloc only does the basic memory alloc).
+	av_image_fill_arrays(tempFrame->data, tempFrame->linesize, (uint8_t*)frame2_buffer, AV_PIX_FMT_YUV420P, width, height, 1);
+
+	//Converts frame into correct format and dimensions, then puts it into tempFrame. 
+	sws_scale(video_resizeconvert_sws_ctxt, originalFrame->data, originalFrame->linesize, 0, videoStreamData.codecContext->height, tempFrame->data, tempFrame->linesize);
+	
+	//Swaps tempframe and current frame.
+	//New frame replaces old frame.
+	if (originalFrame) av_frame_free(&originalFrame);
+	originalFrame = tempFrame;
 }

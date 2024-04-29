@@ -1,4 +1,7 @@
 #include "Display.hpp"
+#include <string>
+#include <exception>
+
 /*
  //init
   SDL_Init(SDL_INIT_VIDEO);
@@ -58,12 +61,17 @@
 */
 //https://stackoverflow.com/questions/17579286/sdl2-0-alternative-for-sdl-overlay
 
-int YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_Rect* image_displayArea)
+void YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_Rect* image_displayArea)
 {
-	return SDL_UpdateYUVTexture(texture, image_displayArea,
+	if (SDL_UpdateYUVTexture(texture, image_displayArea,
 		imageFrame->data[0], imageFrame->linesize[0],
 		imageFrame->data[1], imageFrame->linesize[1],
-		imageFrame->data[2], imageFrame->linesize[2]);
+		imageFrame->data[2], imageFrame->linesize[2]) != 0)
+	{
+		std::string msg = "Unable to convert avframe to texture: ";
+		msg += SDL_GetError();
+		throw std::exception(msg.c_str());
+	}
 }
 
 void DrawTexture(SDL_Renderer* renderer, SDL_Texture* texture)
