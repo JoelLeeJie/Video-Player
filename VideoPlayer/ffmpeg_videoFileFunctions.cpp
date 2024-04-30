@@ -136,15 +136,22 @@ AVFrame* VideoFile::GetFrame(int index)
 				//error reading packet. Not sure if issue will persist, so don't set error.
 				return nullptr;
 			}
-			if ((errVal = avcodec_send_packet(stream.codecContext, stream.currPacket)) == 0 || errVal == AVERROR(EAGAIN))
+			if ((errVal = avcodec_send_packet(stream.codecContext, stream.currPacket)) == 0 || errVal == AVERROR(EAGAIN))   //TODO: If exception "Access write violation" thrown here, it means the issue is with resizeVideo function when freeing originalFrame.
 			{
-				continue; //try to read a frame again.
+					continue; //try to read a frame again.
 			}
 			else if (errVal == AVERROR_EOF)
 			{
 				//Should be caught before, but jic just set.
 				errorCodes.reachedEOF = true;
 				errorCodes.message += std::to_string(index) += " stream has reached EOF\n";
+				return nullptr;
+			}
+			else if (errVal == AVERROR_INVALIDDATA)
+			{
+				errorCodes.canRead = errorCodes.canCodec = false;
+				errorCodes.message += "Invalid Data reading frame from ";
+				errorCodes.message += std::to_string(index) += " stream\n";
 				return nullptr;
 			}
 			//unable to send packet, and no frames can be read either, unable to resolve.
@@ -252,7 +259,7 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 			NULL);
 		prevWidth = width;
 		prevHeight = height;
-		if (video_resizeconvert_sws_ctxt)
+		if (!video_resizeconvert_sws_ctxt)
 		{
 			errorCodes.resizeError = true;
 			errorCodes.message += "Unable to set sws_context for resizing+converting video\n";
@@ -272,12 +279,26 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 	int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, width, height, 1);
 	uint8_t* frame2_buffer = (uint8_t*)av_malloc(num_bytes);
 	//"Fills" the temp frame with rest of the required memory(av_frame_alloc only does the basic memory alloc).
-	av_image_fill_arrays(tempFrame->data, tempFrame->linesize, (uint8_t*)frame2_buffer, AV_PIX_FMT_YUV420P, width, height, 1);
+	if (num_bytes < 0 || !frame2_buffer || av_image_fill_arrays(tempFrame->data, tempFrame->linesize, (uint8_t*)frame2_buffer, AV_PIX_FMT_YUV420P, width, height, 1) < 0)
+	{
+		//Error occured. Note that the rest won't run if prior conditions fulfilled, due to short-circuiting.
+		errorCodes.resizeError = true;
+		errorCodes.message += "Error allocating frame\n";
+		av_frame_free(&tempFrame);
+		return;
+	}
+
+
 
 	//Converts frame into correct format and dimensions, then puts it into tempFrame. 
 	sws_scale(video_resizeconvert_sws_ctxt, originalFrame->data, originalFrame->linesize, 0, originalFrame->height, tempFrame->data, tempFrame->linesize);
-	
-	//Replace original frame with the converted frame.
-	av_frame_free(&originalFrame);
+
+	//TODO: av_frame_free causes errors, but commenting it out leads to mem leaks--> video crashes after a while.
+	//Use debug feature to track heap size, as it says "heap corrupted".
+
+	//av_frame_free(&originalFrame);
+	av_freep((void*)originalFrame->data); //Commenting both out will run the video player no issues.
+
 	originalFrame = tempFrame;
+	printf("hi");
 }

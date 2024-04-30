@@ -133,15 +133,22 @@ int main(int argc, char** argv)
 					if ((errorCheck = videoFile.checkIsValid()) == nullptr) continue; //Try to read again if no detectable error.
 					SDL_Log(errorCheck->message.c_str()); //For debugging.
 					if (errorCheck->reachedEOF) break; //can't read from an empty stream. 
-					if (errorCheck->canRead || errorCheck->canCodec)
+					if (!errorCheck->canRead || !errorCheck->canCodec)
 					{
 						//TODO: Need better error handling, try to resolve error before requesting new frame else may have infinite loop.
+						videoFile.ResetErrorCodes();
 						continue; 
 					}
 				}
 				//Resize(and convert) image frame to correct dimensions and YUV420P format.
 				//Note: dimensions based on videoDisplayRect.
 				if(next_videoFrame) videoFile.ResizeVideoFrame(next_videoFrame, videoDisplayRect.w, videoDisplayRect.h);
+				if (errorCheck = videoFile.checkIsValid())
+				{
+					//Resize error.
+					SDL_Log(errorCheck->message.c_str());
+					videoFile.ResetErrorCodes();
+				}
 			}
 			try
 			{
@@ -164,8 +171,9 @@ int main(int argc, char** argv)
 
 		//===For Input===//
 		tempMessage.clear();
-		tempMessage << "Current Video " << videoCurrTime << "  " << "Frame pts time " << videoFile.GetCurrentPTSTIME(videoStreamIndex) << "\n";
-		SDL_Log(tempMessage.str().c_str());
+		//tempMessage << "Current Video " << videoCurrTime << "  " << "Frame pts time " << videoFile.GetCurrentPTSTIME(videoStreamIndex) << "\n";
+		//SDL_Log(tempMessage.str().c_str());
+		
 		//TODO: Allow video to be paused.
 		//TODO: Add UI elements into mainWindow_texture.
 

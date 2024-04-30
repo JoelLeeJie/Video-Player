@@ -3,8 +3,28 @@
 #include "types.hpp"
 #include <string>
 #include <vector>
-struct StreamData; //forward declaration
-struct VideoFileError;
+//Relevant attributes for each individual stream. 
+struct StreamData
+{
+	AVStream* stream{}; //Audio/Video/other stream to read from. Pointer to the stream in videoContainer (AVFormatContext).
+	AVCodec* codec{};
+	AVCodecParameters* codecParam{}; //Details of codec
+	AVCodecContext* codecContext{}; //Used to decode compressed packets. Need to alloc/dealloc memory for this variable.
+	//temporary variables used to store data//
+	AVPacket* currPacket{}; //Need to alloc.
+	AVFrame* currFrame{}; //Need to alloc.
+};
+
+struct VideoFileError
+{
+	bool canFind = true;
+	bool canRead = true;
+	bool canCodec = true;
+	bool reachedEOF = false;
+	bool resizeError = false;
+	std::string message{};
+};
+
 class VideoFile
 {
 public:
@@ -63,27 +83,7 @@ private:
 	VideoFileError errorCodes{};
 };
 
-//Relevant attributes for each individual stream. 
-struct StreamData
-{
-	AVStream* stream{}; //Audio/Video/other stream to read from. Pointer to the stream in videoContainer (AVFormatContext).
-	AVCodec* codec{};
-	AVCodecParameters* codecParam{}; //Details of codec
-	AVCodecContext* codecContext{}; //Used to decode compressed packets. Need to alloc/dealloc memory for this variable.
-	//temporary variables used to store data//
-	AVPacket* currPacket{}; //Need to alloc.
-	AVFrame* currFrame{}; //Need to alloc.
-};
 
-struct VideoFileError
-{
-	bool canFind = true;
-	bool canRead = true;
-	bool canCodec = true;
-	bool reachedEOF = false;
-	bool resizeError = false;
-	std::string message{};
-};
 
 //Returns nullptr if unable to open video file.
 AVFormatContext* GetAVFormat(const std::string &fileName);
