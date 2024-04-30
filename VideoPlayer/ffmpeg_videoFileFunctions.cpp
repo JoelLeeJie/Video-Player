@@ -96,12 +96,11 @@ void VideoFile::PrintDetails(std::ostream& output)
 	}
 }
 
-const VideoFileError *VideoFile::checkIsValid(std::string& outputMessage)
+const VideoFileError *VideoFile::checkIsValid()
 {
 	//There's an error.
 	if (!errorCodes.canFind || !errorCodes.canRead || !errorCodes.canCodec || errorCodes.reachedEOF || errorCodes.resizeError)
 	{
-		outputMessage = errorCodes.message;
 		return &errorCodes;
 	}
 	//No error

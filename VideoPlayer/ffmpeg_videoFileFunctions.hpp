@@ -21,7 +21,7 @@ public:
 	void PrintDetails(std::ostream& output);
 
 	//Returns pointer to video file's error code if there's an error, else returns nullptr.
-	const VideoFileError *checkIsValid(std::string& outputMessage);
+	const VideoFileError *checkIsValid();
 	
 	//Call once errors are handled, to reset errors.
 	void ResetErrorCodes();

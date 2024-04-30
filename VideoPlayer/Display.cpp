@@ -69,7 +69,8 @@ void YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_
 		imageFrame->data[2], imageFrame->linesize[2]) != 0)
 	{
 		std::string msg = "Unable to convert avframe to texture: ";
-		msg += SDL_GetError();
+		msg += SDL_GetError(); 
+		msg += "\n";
 		throw std::exception(msg.c_str());
 	}
 }
