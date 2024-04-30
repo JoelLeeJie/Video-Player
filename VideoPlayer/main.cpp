@@ -45,14 +45,17 @@ int main(int argc, char** argv)
 	//This can be changed to different dimensions when window is resized.
 	SDL_Texture* mainWindow_texture = SDL_CreateTexture(mainWindow_renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, windowDimensions[0], windowDimensions[1]);
 
+	if (!mainWindow || !mainWindow_renderer || !mainWindow_texture)
+	{
+		SDL_Log("Failed to init main window/renderer/textures");
+		return 1;
+	}
 	//TODO: use window's file manager to choose the filepath instead.
 	//Init the video file and streams etc.
-	VideoFile videoFile{ "C:/Users/onwin/source/repos/VideoPlayer/Assets/Demo/Everlasting Flames - Honkai Impact 3rd.mp4" };
-	std::string errMsg{};
-	if (!videoFile.checkIsValid(errMsg))
-	{
-		std::cout << errMsg;
-	}
+
+	VideoFile temp{ "C:/Users/onwin/source/repos/VideoPlayer/Assets/Demo/Everlasting Flames - Honkai Impact 3rd.mp4" };
+	
+
 	videoFile.PrintDetails(std::cout);
 
 	//SDL_Rect videoDisplayRect = videoFile.GetVideoDimensions();

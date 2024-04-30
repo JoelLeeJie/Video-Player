@@ -2,17 +2,17 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <exception>
 
+//Returns nullptr if unable to open video file.
 AVFormatContext* GetAVFormat(const std::string &fileName)
 {
 	AVFormatContext* returnVal = avformat_alloc_context();
 	int err;
+	//Unable to open videofile, so set to null.
 	if ((err = avformat_open_input(&returnVal, fileName.c_str(), NULL, NULL)) != 0)
 	{
-		std::string msg = "Error opening video file: AVERROR ";
-		msg += err;
-		throw std::invalid_argument(msg); //TODO: catch and display ("Video not found") message box to user instead.
+		avformat_close_input(&returnVal); //will also free the context.
+		returnVal = nullptr; 
 	}
 	return returnVal;
 }
@@ -20,19 +20,22 @@ AVFormatContext* GetAVFormat(const std::string &fileName)
 VideoFile::VideoFile(const std::string &fileName)
 {
 	//1. Point to the video file
-	try
+	videoContainer = GetAVFormat(fileName);
+	if (!videoContainer)
 	{
-		videoContainer = GetAVFormat(fileName);
-	}
-	catch (std::invalid_argument& e)
-	{
-		throw e; //Unable to open file.
+		//Don't try to init an empty container, just set error and return.
+		errorCodes.message += "Invalid FilePath. Unable to open video file\n";
+		errorCodes.canFind = false;
+		return;
 	}
 
 	//2. Open video/audio streams. 
 	if (avformat_find_stream_info(videoContainer, NULL) < 0)
 	{
-		throw std::exception("Unable to open video streams");
+		//Don't init if cannot find streams to play.
+		errorCodes.message += "Unable to read video/audio av streams\n";
+		errorCodes.canRead = false;
+		return;
 	}
 
 	//3. Get the codec data/context for each stream.
@@ -42,14 +45,18 @@ VideoFile::VideoFile(const std::string &fileName)
 		streamArr.push_back({});
 		StreamData& streamData = streamArr.back();
 		streamData.stream = videoContainer->streams[i];
-		//For each stream, find the codec param to find the codec id, and use it to find the codec.
+		//For each stream, find the codec param to find the codec id, and use it to find the codec, and use that to find codec context.
 		streamData.codecParam = videoContainer->streams[i]->codecpar;
 		streamData.codec = avcodec_find_decoder(videoContainer->streams[i]->codecpar->codec_id);
 		//Need to alloc memory for codecContext.
 		streamData.codecContext = avcodec_alloc_context3(streamData.codec);
 		//Assigning data to context.
 		avcodec_parameters_to_context(streamData.codecContext, streamData.codecParam);
-		if(avcodec_open2(streamData.codecContext, streamData.codec, NULL)!=0) throw std::exception("Unable to set codecContext");
+		if (avcodec_open2(streamData.codecContext, streamData.codec, NULL) != 0)
+		{
+			errorCodes.message += "Unable to open codec context for stream\n";
+			errorCodes.canCodec = false;
+		}
 		//Just alloc memory for these two, no need to update.
 		streamData.currPacket = av_packet_alloc();
 		streamData.currFrame = av_frame_alloc();
@@ -66,7 +73,7 @@ VideoFile::~VideoFile()
 		if (streamData.currFrame) av_frame_free(&streamData.currFrame);
 	}
 	if (video_resizeconvert_sws_ctxt) sws_freeContext(video_resizeconvert_sws_ctxt);
-	if (videoContainer) avformat_free_context(videoContainer);
+	if (videoContainer) avformat_close_input(&videoContainer);
 }
 
 void VideoFile::PrintDetails(std::ostream& output)
@@ -89,18 +96,25 @@ void VideoFile::PrintDetails(std::ostream& output)
 	}
 }
 
-bool VideoFile::checkIsValid(std::string& outputMessage)
+const VideoFileError *VideoFile::checkIsValid(std::string& outputMessage)
 {
-	if (!videoContainer)
+	//There's an error.
+	if (!errorCodes.canFind || !errorCodes.canRead || !errorCodes.canCodec || errorCodes.reachedEOF || errorCodes.resizeError)
 	{
-		outputMessage = "Invalid Input File\n";
-		return false;
+		outputMessage = errorCodes.message;
+		return &errorCodes;
 	}
-	return true;
+	//No error
+	return nullptr;
 }
 
 
-//Returns nullptr if no frame can be read.
+void VideoFile::ResetErrorCodes()
+{
+	errorCodes = VideoFileError{};
+}
+
+//Returns nullptr if no frame can be read, check error codes.
 AVFrame* VideoFile::GetFrame(int index)
 {
 	StreamData& stream = streamArr[index];
@@ -110,21 +124,42 @@ AVFrame* VideoFile::GetFrame(int index)
 		//Not successful,try to resolve.
 		switch (errVal)
 		{
+		//Reached end of file, need to indicate.
+		case AVERROR_EOF:
+			errorCodes.reachedEOF = true;
+			errorCodes.message += std::to_string(index) += " stream has reached EOF\n";
+			return nullptr;
 		//Send a new packet, since incomplete frame.
-		case AVERROR(EAGAIN):
-			//error reading packet, maybe reached eof?
+		case AVERROR(EAGAIN): 
+			//Read a packet and send it.
 			if (av_read_frame(videoContainer, stream.currPacket) < 0)
 			{
+				//error reading packet. Not sure if issue will persist, so don't set error.
 				return nullptr;
 			}
-			if ((errVal = avcodec_send_packet(stream.codecContext, stream.currPacket)) == 0)
+			if ((errVal = avcodec_send_packet(stream.codecContext, stream.currPacket)) == 0 || errVal == AVERROR(EAGAIN))
 			{
-				continue; //try to read again.
+				continue; //try to read a frame again.
+			}
+			else if (errVal == AVERROR_EOF)
+			{
+				//Should be caught before, but jic just set.
+				errorCodes.reachedEOF = true;
+				errorCodes.message += std::to_string(index) += " stream has reached EOF\n";
+				return nullptr;
 			}
 			//unable to send packet, and no frames can be read either, unable to resolve.
+			//Read error.
+			errorCodes.canRead = errorCodes.canCodec = false;
+			errorCodes.message += "Unknown error reading frame from ";
+			errorCodes.message += std::to_string(index) += " stream\n";
 			return nullptr;
 		//Unable to resolve.
+		//Read error.
 		default:
+			errorCodes.canRead = errorCodes.canCodec = false;
+			errorCodes.message += "Unknown error reading frame from ";
+			errorCodes.message += std::to_string(index) += " stream\n";
 			return nullptr;
 		}
 	}
@@ -185,6 +220,11 @@ SDL_Rect VideoFile::GetVideoDimensions()
 	return returnVal;
 }
 
+/*
+	1. Allocates an sws_context(ffmpeg) if none found/a new one is needed.
+	2. Allocates a temp frame and fills it with required memory.
+	3. 
+*/
 void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 {
 	if (!originalFrame) return;
@@ -194,7 +234,9 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 	int videoStreamIndex = GetVideoStreamIndex();
 	if (videoStreamIndex < 0) //No video stream found
 	{
-		throw std::exception("No video stream to resize");
+		errorCodes.resizeError = true;
+		errorCodes.message += "No video stream found\n";
+		return;
 	}
 	StreamData& videoStreamData = streamArr[videoStreamIndex];
 
@@ -211,22 +253,32 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 			NULL);
 		prevWidth = width;
 		prevHeight = height;
-		if (video_resizeconvert_sws_ctxt) std::exception("Unable to get resize sws_context");
+		if (video_resizeconvert_sws_ctxt)
+		{
+			errorCodes.resizeError = true;
+			errorCodes.message += "Unable to set sws_context for resizing+converting video\n";
+			return;
+		}
 	}
 
 	//Allocates a new frame with new format and dimensions.
 	//Used as return value.
 	AVFrame* tempFrame = av_frame_alloc();
+	if (!tempFrame)
+	{
+		errorCodes.resizeError = true;
+		errorCodes.message += "Unable to allocate temporary frame for resize\n";
+		return;
+	}
 	int num_bytes = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, width, height, 1);
 	uint8_t* frame2_buffer = (uint8_t*)av_malloc(num_bytes);
 	//"Fills" the temp frame with rest of the required memory(av_frame_alloc only does the basic memory alloc).
 	av_image_fill_arrays(tempFrame->data, tempFrame->linesize, (uint8_t*)frame2_buffer, AV_PIX_FMT_YUV420P, width, height, 1);
 
 	//Converts frame into correct format and dimensions, then puts it into tempFrame. 
-	sws_scale(video_resizeconvert_sws_ctxt, originalFrame->data, originalFrame->linesize, 0, videoStreamData.codecContext->height, tempFrame->data, tempFrame->linesize);
+	sws_scale(video_resizeconvert_sws_ctxt, originalFrame->data, originalFrame->linesize, 0, originalFrame->height, tempFrame->data, tempFrame->linesize);
 	
-	//Swaps tempframe and current frame.
-	//New frame replaces old frame.
-	if (originalFrame) av_frame_free(&originalFrame);
+	//Replace original frame with the converted frame.
+	av_frame_free(&originalFrame);
 	originalFrame = tempFrame;
 }
