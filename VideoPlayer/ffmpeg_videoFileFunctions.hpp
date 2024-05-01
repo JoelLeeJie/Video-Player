@@ -50,7 +50,7 @@ public:
 	Gets an AvFrame for that particular stream.
 	Returns null if none read, check error codes for info.
 	*/
-	AVFrame* GetFrame(int index);
+	AVFrame** GetFrame(int index);
 	int64_t GetVideoDuration();
 
 	/*

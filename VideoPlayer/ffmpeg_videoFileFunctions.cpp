@@ -69,8 +69,18 @@ VideoFile::~VideoFile()
 	{
 		//Only dealloc these items, the rest is done in free_context.
 		if (streamData.codecContext) avcodec_free_context(&streamData.codecContext);
-		if (streamData.currPacket) av_packet_free(&streamData.currPacket);
-		if (streamData.currFrame) av_frame_free(&streamData.currFrame);
+		if (streamData.currPacket)
+		{
+			//Dereference buffer.
+			av_packet_unref(streamData.currPacket);
+			av_packet_free(&streamData.currPacket);
+		}
+		if (streamData.currFrame)
+		{
+			//Dereference buffer.
+			av_frame_unref(streamData.currFrame);
+			av_freep(&streamData.currFrame->data[0]);
+		}
 	}
 	if (video_resizeconvert_sws_ctxt) sws_freeContext(video_resizeconvert_sws_ctxt);
 	if (videoContainer) avformat_close_input(&videoContainer);
@@ -114,7 +124,7 @@ void VideoFile::ResetErrorCodes()
 }
 
 //Returns nullptr if no frame can be read, check error codes.
-AVFrame* VideoFile::GetFrame(int index)
+AVFrame** VideoFile::GetFrame(int index)
 {
 	StreamData& stream = streamArr[index];
 	int errVal{};
@@ -170,7 +180,7 @@ AVFrame* VideoFile::GetFrame(int index)
 		}
 	}
 	//read successful.
-	return stream.currFrame;
+	return &stream.currFrame;
 }
 
 int64_t VideoFile::GetVideoDuration()
@@ -234,6 +244,9 @@ SDL_Rect VideoFile::GetVideoDimensions()
 void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 {
 	if (!originalFrame) return;
+	//Store original presentation time, so that it can be changed when reassigning frames.
+	int64_t originalPts = originalFrame->pts;
+	int64_t originalDts = originalFrame->pkt_dts;
 	//Checks if a new context needs to be allocated.
 	static int prevWidth{}, prevHeight{};
 
@@ -284,7 +297,8 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 		//Error occured. Note that the rest won't run if prior conditions fulfilled, due to short-circuiting.
 		errorCodes.resizeError = true;
 		errorCodes.message += "Error allocating frame\n";
-		av_frame_free(&tempFrame);
+		av_frame_unref(tempFrame);
+		av_freep(&tempFrame->data[0]);
 		return;
 	}
 
@@ -293,12 +307,13 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 	//Converts frame into correct format and dimensions, then puts it into tempFrame. 
 	sws_scale(video_resizeconvert_sws_ctxt, originalFrame->data, originalFrame->linesize, 0, originalFrame->height, tempFrame->data, tempFrame->linesize);
 
-	//TODO: av_frame_free causes errors, but commenting it out leads to mem leaks--> video crashes after a while.
-	//Use debug feature to track heap size, as it says "heap corrupted".
-
-	//av_frame_free(&originalFrame);
-	av_freep((void*)originalFrame->data); //Commenting both out will run the video player no issues.
+	//Throw away the old frame and get the new frame.
+	//Dereference buffers before freeing, necessary otherwise there'll be heap corruption.
+	av_frame_unref(originalFrame);
+	av_freep(&originalFrame->data[0]); //Commenting both out will run the video player no issues.
 
 	originalFrame = tempFrame;
-	printf("hi");
+	originalFrame->pts = originalPts; //So that the new frame will have the old frame's time.
+	originalFrame->pkt_dts = originalDts;
+
 }

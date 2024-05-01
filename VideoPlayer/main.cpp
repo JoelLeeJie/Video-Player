@@ -48,9 +48,8 @@ int main(int argc, char** argv)
 	windowDimensions[0] = dm.w;
 	windowDimensions[1] = dm.h;
 	//TODO: remove, for testing purposes.
-	windowDimensions[0] = 1000;
-	windowDimensions[1] = 500;
-
+	windowDimensions[0] = 1400;
+	windowDimensions[1] = 700;
 	//Create the basic window/renderer/texture/rect to draw video on.
 	SDL_Window* mainWindow = SDL_CreateWindow("Joel's Video Player", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowDimensions[0], windowDimensions[1], SDL_WINDOW_RESIZABLE);
 	SDL_Renderer* mainWindow_renderer = SDL_CreateRenderer(mainWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
@@ -103,15 +102,14 @@ int main(int argc, char** argv)
 	/*
 		Video display size
 	*/
-	//This can be changed to different dimensions when window is resized.
-	SDL_Texture* mainWindow_texture = SDL_CreateTexture(mainWindow_renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, windowDimensions[0], windowDimensions[1]);
-	//SDL_Rect videoDisplayRect = videoFile.GetVideoDimensions();
-	//Fullscreen, but can be changed.
-	SDL_Rect videoDisplayRect = { windowDimensions[0]/4, windowDimensions[1]/4, windowDimensions[0]/2, windowDimensions[1]/2};
-
+	//Video display texture for now will be window-sized
+	SDL_Texture* videoDisplayTexture = SDL_CreateTexture(mainWindow_renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, windowDimensions[0], windowDimensions[1]);
+	//The actual size the video will display at, if possible will follow videoDisplayTexture.
+	SDL_Rect videoDisplayRect = {0, 0, windowDimensions[0], windowDimensions[1]};
+	videoDisplayRect = AdjustRectangle(videoFile.GetVideoDimensions(), videoDisplayRect, false); //Makes sure video can fit in display rect with no issue.
 	
 	//TODO: Set it so that video seeking(e.g. going backwards/forwards in the video/audio) is allowed.
-	AVFrame* next_videoFrame{};
+	AVFrame** next_videoFrame{}; //Points to the frame within the streamArr, so that functions like ResizeFrame can change the actual data.
 	/*
 		Playing Video
 	*/
@@ -127,7 +125,7 @@ int main(int argc, char** argv)
 			if (videoFile.GetCurrentPTSTIME(videoStreamIndex) < videoCurrTime)
 			{
 				//Do until an actual frame is available. May cause an infinite loop but just for testing.
-				while ((next_videoFrame = videoFile.GetFrame(videoStreamIndex)) == nullptr)
+				while ((next_videoFrame = videoFile.GetFrame(videoStreamIndex)) == nullptr) 
 				{
 					//Error occured.
 					if ((errorCheck = videoFile.checkIsValid()) == nullptr) continue; //Try to read again if no detectable error.
@@ -142,7 +140,7 @@ int main(int argc, char** argv)
 				}
 				//Resize(and convert) image frame to correct dimensions and YUV420P format.
 				//Note: dimensions based on videoDisplayRect.
-				if(next_videoFrame) videoFile.ResizeVideoFrame(next_videoFrame, videoDisplayRect.w, videoDisplayRect.h);
+				if(next_videoFrame) videoFile.ResizeVideoFrame(*next_videoFrame, videoDisplayRect.w, videoDisplayRect.h);
 				if (errorCheck = videoFile.checkIsValid())
 				{
 					//Resize error.
@@ -152,7 +150,7 @@ int main(int argc, char** argv)
 			}
 			try
 			{
-				if (next_videoFrame) YUV420P_TO_SDLTEXTURE(next_videoFrame, mainWindow_texture, &videoDisplayRect);
+				if (next_videoFrame) YUV420P_TO_SDLTEXTURE(*next_videoFrame, videoDisplayTexture, &videoDisplayRect);
 			}
 			catch (std::exception& e)
 			{
@@ -171,15 +169,15 @@ int main(int argc, char** argv)
 
 		//===For Input===//
 		tempMessage.clear();
-		//tempMessage << "Current Video " << videoCurrTime << "  " << "Frame pts time " << videoFile.GetCurrentPTSTIME(videoStreamIndex) << "\n";
-		//SDL_Log(tempMessage.str().c_str());
+		tempMessage << "Current Video " << videoCurrTime << "  " << "Frame pts time " << videoFile.GetCurrentPTSTIME(videoStreamIndex) << "\n";
+		SDL_Log(tempMessage.str().c_str());
 		
 		//TODO: Allow video to be paused.
 		//TODO: Add UI elements into mainWindow_texture.
 
 		//Finally, draw texture
 		//Can add on UI and other things before drawing.
-		DrawTexture(mainWindow_renderer, mainWindow_texture);
+		DrawTexture(mainWindow_renderer, videoDisplayTexture);
 	}
 	
 
@@ -195,6 +193,6 @@ int main(int argc, char** argv)
 	}
 	if(mainWindow_renderer) SDL_DestroyRenderer(mainWindow_renderer);
 	if(mainWindow) SDL_DestroyWindow(mainWindow);
-	if (mainWindow_texture) SDL_DestroyTexture(mainWindow_texture);
+	if (videoDisplayTexture) SDL_DestroyTexture(videoDisplayTexture);
 	return 0;
 }

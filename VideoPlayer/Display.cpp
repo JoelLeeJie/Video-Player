@@ -63,6 +63,7 @@
 
 void YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_Rect* image_displayArea)
 {
+	if (!imageFrame || !texture || !image_displayArea) return;
 	if (SDL_UpdateYUVTexture(texture, image_displayArea,
 		imageFrame->data[0], imageFrame->linesize[0],
 		imageFrame->data[1], imageFrame->linesize[1],
@@ -74,10 +75,39 @@ void YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_
 		throw std::exception(msg.c_str());
 	}
 }
-
 void DrawTexture(SDL_Renderer* renderer, SDL_Texture* texture)
 {
 	SDL_RenderClear(renderer);
 	SDL_RenderCopy(renderer, texture, NULL, NULL);
 	SDL_RenderPresent(renderer);
+}
+
+//Fits video into dimensions, following original aspect ratio.
+SDL_Rect AdjustRectangle(SDL_Rect videoDimensions, SDL_Rect limitDimensions, bool isTrueSize)
+{
+	//If height too big, or width too big, then readjust.
+	double aspectRatio_widthHeight = static_cast<double>(videoDimensions.w) / videoDimensions.h;
+	//Expand video to fit max dimensions first.
+	if (!isTrueSize)
+	{
+		videoDimensions = limitDimensions;
+		videoDimensions.w *= 2; //To trigger the aspect ratio adjustment
+	}
+	//Limit the width
+	if (videoDimensions.w > limitDimensions.w)
+	{
+		videoDimensions.w = limitDimensions.w;
+		videoDimensions.h = videoDimensions.w / aspectRatio_widthHeight;
+	}
+	//Limit the height. Note that this comes after it's already limited by above.
+	if (videoDimensions.h > limitDimensions.h)
+	{
+		videoDimensions.h = limitDimensions.h;
+		videoDimensions.w = videoDimensions.h * aspectRatio_widthHeight;
+	}
+	//Center video if it doesn't fit perfectly.
+	videoDimensions.x = limitDimensions.x + (limitDimensions.w - videoDimensions.w) / 2.0;
+	videoDimensions.y = limitDimensions.y + (limitDimensions.h - videoDimensions.h) / 2.0;
+
+	return videoDimensions;
 }

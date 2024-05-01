@@ -15,4 +15,9 @@ Will stretch the texture to fill the entire renderer.
 */
 void DrawTexture(SDL_Renderer* renderer, SDL_Texture* texture);
 
+/*
+	Will return size of video display rectangle limited to limitDimensions, following aspect ratio.
+	isTrueSize --> True to follow video size, false to expand video to limitDimensions(fit-to-following aspect ratio)
+*/
+SDL_Rect AdjustRectangle(SDL_Rect videoDimensions, SDL_Rect limitDimensions, bool isTrueSize = false);
 #endif
