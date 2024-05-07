@@ -15,6 +15,7 @@ PacketData::~PacketData()
 		//Dereference buffer.
 		av_packet_unref(packet);
 		av_packet_free(&packet);
+		packet = nullptr;
 	}
 }
 
@@ -50,10 +51,11 @@ AVPacket** VideoFile::GetPacket(CodecType codecType)
 	{
 		//Check if this packet has been read by this type of codec.
 		if (iter->codecReadArr[static_cast<int>(codecType)]) continue;
+		iter->codecReadArr[static_cast<int>(codecType)] = true;
 		return &iter->packet;
 	}
 	//Add new packet here, as all packets in queue have already been read by this codec.
-	packetArr.push_back(PacketData{});
+	packetArr.emplace_back();
 	if (av_read_frame(videoContainer, packetArr.back().packet) < 0)
 	{
 		//Unknown error.
@@ -121,7 +123,7 @@ VideoFile::VideoFile(const std::string &fileName)
 			errorCodes.message += "Unable to open codec context for stream\n";
 			errorCodes.canCodec = false;
 		}
-		//Just alloc memory for these two, no need to update.
+		//Just alloc memory for this, no need to update.
 		streamData.currFrame = av_frame_alloc();
 	}
 
