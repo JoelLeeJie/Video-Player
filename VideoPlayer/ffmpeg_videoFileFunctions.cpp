@@ -3,6 +3,70 @@
 #include <fstream>
 #include <string>
 
+PacketData::PacketData()
+{
+	packet = av_packet_alloc();
+}
+
+PacketData::~PacketData()
+{
+	if (packet)
+	{
+		//Dereference buffer.
+		av_packet_unref(packet);
+		av_packet_free(&packet);
+	}
+}
+
+
+AVPacket** VideoFile::GetPacket(CodecType codecType)
+{
+
+	//TODO: using a list may be more efficient when removing front element.
+	//Update packet queue and remove packets which were read by all codecs.
+
+	std::list<PacketData>::iterator iter;
+	bool breakLoop = false;
+	for (iter = packetArr.begin(); iter != packetArr.end();) //Note the lack of iter++, as the loop won't increment until a packet is removed.
+	{
+		//Loop through codecReadArr and check if any codec hasn't read it yet.
+		for (int i = 0; i < static_cast<int>(CodecType::END); i++)
+		{
+			//If this packet hasn't been read by a codec, then don't remove it.
+			if (iter->codecReadArr[i] == false)
+			{
+				breakLoop = true;
+				break;
+			}
+		}
+		if (breakLoop) break; //This packet(and thus all following packets) has not been read by at least a codec.
+		//Packet has been read by all codecs, so remove it.
+		iter = packetArr.erase(iter);
+	}
+
+
+	//Check if any packet in the queue hasn't been read by the codec yet.
+	for (iter = packetArr.begin(); iter != packetArr.end(); iter++)
+	{
+		//Check if this packet has been read by this type of codec.
+		if (iter->codecReadArr[static_cast<int>(codecType)]) continue;
+		return &iter->packet;
+	}
+	//Add new packet here, as all packets in queue have already been read by this codec.
+	packetArr.push_back(PacketData{});
+	if (av_read_frame(videoContainer, packetArr.back().packet) < 0)
+	{
+		//Unknown error.
+		packetArr.pop_back(); //destroy the newly created packet data.
+		return nullptr;
+	}
+	packetArr.back().codecReadArr[static_cast<int>(codecType)] = true;
+	//If any stream is invalid, then no need to check if that codec read the packet.
+	if (audioStreamIndex == -1) packetArr.back().codecReadArr[static_cast<int>(CodecType::AUDIOCODEC)] = true;
+	if (videoStreamIndex == -1) packetArr.back().codecReadArr[static_cast<int>(CodecType::VIDEOCODEC)] = true;
+	return &packetArr.back().packet;
+}
+
 //Returns nullptr if unable to open video file.
 AVFormatContext* GetAVFormat(const std::string &fileName)
 {
@@ -58,8 +122,21 @@ VideoFile::VideoFile(const std::string &fileName)
 			errorCodes.canCodec = false;
 		}
 		//Just alloc memory for these two, no need to update.
-		streamData.currPacket = av_packet_alloc();
 		streamData.currFrame = av_frame_alloc();
+	}
+
+	int index = 0;
+	for (const StreamData& streamData : streamArr)
+	{
+		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_AUDIO)
+		{
+			audioStreamIndex = index;
+		}
+		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_VIDEO)
+		{
+			videoStreamIndex = index;
+		}
+		index++;
 	}
 }
 
@@ -69,12 +146,6 @@ VideoFile::~VideoFile()
 	{
 		//Only dealloc these items, the rest is done in free_context.
 		if (streamData.codecContext) avcodec_free_context(&streamData.codecContext);
-		if (streamData.currPacket)
-		{
-			//Dereference buffer.
-			av_packet_unref(streamData.currPacket);
-			av_packet_free(&streamData.currPacket);
-		}
 		if (streamData.currFrame)
 		{
 			//Dereference buffer.
@@ -124,8 +195,19 @@ void VideoFile::ResetErrorCodes()
 }
 
 //Returns nullptr if no frame can be read, check error codes.
-AVFrame** VideoFile::GetFrame(int index)
+AVFrame** VideoFile::GetFrame(CodecType codecType)
 {
+	int index = 0;
+	AVPacket** pPacket = nullptr;
+	switch (codecType)
+	{
+	case CodecType::AUDIOCODEC:
+		index = audioStreamIndex;
+		break;
+	case CodecType::VIDEOCODEC:
+		index = videoStreamIndex;
+		break;
+	}
 	StreamData& stream = streamArr[index];
 	int errVal{};
 	while ((errVal = avcodec_receive_frame(stream.codecContext, stream.currFrame)) != 0)
@@ -141,12 +223,10 @@ AVFrame** VideoFile::GetFrame(int index)
 		//Send a new packet, since incomplete frame.
 		case AVERROR(EAGAIN): 
 			//Read a packet and send it.
-			if (av_read_frame(videoContainer, stream.currPacket) < 0)
-			{
-				//error reading packet. Not sure if issue will persist, so don't set error.
-				return nullptr;
-			}
-			if ((errVal = avcodec_send_packet(stream.codecContext, stream.currPacket)) == 0 || errVal == AVERROR(EAGAIN))   //TODO: If exception "Access write violation" thrown here, it means the issue is with resizeVideo function when freeing originalFrame.
+			pPacket = GetPacket(codecType);
+			//Unknown error when getting packet, so return but don't set error codes.
+			if (!pPacket) return nullptr; 
+			if ((errVal = avcodec_send_packet(stream.codecContext, *pPacket)) == 0 || errVal == AVERROR(EAGAIN))   //TODO: If exception "Access write violation" thrown here, it means the issue is with resizeVideo function when freeing originalFrame.
 			{
 					continue; //try to read a frame again.
 			}
@@ -188,37 +268,29 @@ int64_t VideoFile::GetVideoDuration()
 	return videoContainer->duration / AV_TIME_BASE;
 }
 
-double VideoFile::GetCurrentPTSTIME(int index)
+double VideoFile::GetCurrentPTSTIME(CodecType codecType)
 {
+	int index = 0;
+	switch (codecType)
+	{
+	case CodecType::AUDIOCODEC:
+		index = audioStreamIndex;
+		break;
+	case CodecType::VIDEOCODEC:
+		index = videoStreamIndex;
+		break;
+	}
 	return static_cast<double>(streamArr[index].stream->time_base.num/static_cast<double>(streamArr[index].stream->time_base.den) * static_cast<double>(streamArr[index].currFrame->pts));
 }
 
 
 int VideoFile::GetAudioStreamIndex()
 {
-	int returnVal{};
-	for (const StreamData &streamData : streamArr)
-	{
-		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_AUDIO)
-		{
-			return returnVal;
-		}
-		returnVal++;
-	}
-	return -1; //No audio stream found.
+	return audioStreamIndex;
 }
 int VideoFile::GetVideoStreamIndex()
 {
-	int returnVal{};
-	for (const StreamData& streamData : streamArr)
-	{
-		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_VIDEO)
-		{
-			return returnVal;
-		}
-		returnVal++;
-	}
-	return -1; //No video stream found.
+	return videoStreamIndex;
 }
 
 SDL_Rect VideoFile::GetVideoDimensions()

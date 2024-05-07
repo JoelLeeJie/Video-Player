@@ -3,6 +3,30 @@
 #include "types.hpp"
 #include <string>
 #include <vector>
+#include <list>
+
+enum class CodecType
+{
+	AUDIOCODEC = 0, //Do not change, used to index the array.
+	VIDEOCODEC,
+	END, //Used for size of array
+};
+
+// Packet queue.
+// When a packet is sent to all codecs, it can be removed from the queue.
+// Only add another packet to the queue if packets within the queue are already read by the codec.
+class PacketData
+{
+public:
+	PacketData();
+	~PacketData();
+	AVPacket* packet; //Need to alloc and dealloc.
+	//May be replaced by a single int and using bitwise | and & to check and add values.
+	bool codecReadArr[static_cast<int>(CodecType::END)]{}; //Default is false
+};
+
+
+
 //Relevant attributes for each individual stream. 
 struct StreamData
 {
@@ -11,7 +35,6 @@ struct StreamData
 	AVCodecParameters* codecParam{}; //Details of codec
 	AVCodecContext* codecContext{}; //Used to decode compressed packets. Need to alloc/dealloc memory for this variable.
 	//temporary variables used to store data//
-	AVPacket* currPacket{}; //Need to alloc.
 	AVFrame* currFrame{}; //Need to alloc.
 };
 
@@ -50,13 +73,13 @@ public:
 	Gets an AvFrame for that particular stream.
 	Returns null if none read, check error codes for info.
 	*/
-	AVFrame** GetFrame(int index);
+	AVFrame** GetFrame(CodecType codecType);
 	int64_t GetVideoDuration();
 
 	/*
 	* Gets the current frame's ptsTime for that stream. Use for synchronisation.
 	*/
-	double GetCurrentPTSTIME(int index);
+	double GetCurrentPTSTIME(CodecType codecType);
 	
 	/*Returns -1 if none found*/
 	int GetAudioStreamIndex();
@@ -71,16 +94,31 @@ public:
 	*/
 	void ResizeVideoFrame(AVFrame*& originalFrame, int width, int height);
 	
+	/*
+		Gets a packet from the queue for that codec.
+		When all codecs read the packet, it is removed.
+		Packets are read from the queue first, if all packets are already read by that codec, then a new one is read from the container and added to the queue.
+	*/
+	AVPacket** GetPacket(CodecType codec);
+
 private:
 	AVFormatContext* videoContainer = nullptr;
 	std::vector<StreamData> streamArr{}; //Need to dealloc codecContext.
 	
+// Packet queue.
+// When a packet is sent to all codecs, it can be removed from the queue.
+// Only add another packet to the queue if packets within the queue are already read by the codec.
+	std::list<PacketData> packetArr{}; //Will alloc and dealloc itself.
+
 	//Used to resize and convert video using sws_scale.
 	//Allocated and deallocated when used.
 	struct SwsContext* video_resizeconvert_sws_ctxt = nullptr; 
 
 	//Error code. Used instead of std::exceptions(which can crash the program if not caught).
 	VideoFileError errorCodes{};
+
+	int audioStreamIndex = -1;
+	int videoStreamIndex = -1;
 };
 
 

@@ -69,6 +69,7 @@ int main(int argc, char** argv)
 	//TODO: use window's file manager to choose the filepath instead.
 	//Init the video file and streams etc.
 	VideoFile videoFile{ "C:/Users/onwin/source/repos/VideoPlayer/Assets/Demo/Everlasting Flames - Honkai Impact 3rd.mp4" };
+
 	//Error code is returned.
 	//TODO: loop again, and ask user to choose another video. Due to use of constructor, may need to use a ptr and "new/delete" instead.
 	if (errorCheck = videoFile.checkIsValid())
@@ -109,7 +110,9 @@ int main(int argc, char** argv)
 	videoDisplayRect = AdjustRectangle(videoFile.GetVideoDimensions(), videoDisplayRect, false); //Makes sure video can fit in display rect with no issue.
 	
 	//TODO: Set it so that video seeking(e.g. going backwards/forwards in the video/audio) is allowed.
-	AVFrame** next_videoFrame{}; //Points to the frame within the streamArr, so that functions like ResizeFrame can change the actual data.
+	//Points to the frame within the streamArr, so that functions like ResizeFrame can change the actual data.
+	AVFrame** next_videoFrame{}; 
+	AVFrame** next_audioFrame{};
 	/*
 		Playing Video
 	*/
@@ -122,10 +125,10 @@ int main(int argc, char** argv)
 		if (videoStreamIndex >= 0) //Check if video stream is available.
 		{
 			//Gets the next frame when it's time.
-			if (videoFile.GetCurrentPTSTIME(videoStreamIndex) < videoCurrTime)
+			if (videoFile.GetCurrentPTSTIME(CodecType::VIDEOCODEC) < videoCurrTime)
 			{
 				//Do until an actual frame is available. May cause an infinite loop but just for testing.
-				while ((next_videoFrame = videoFile.GetFrame(videoStreamIndex)) == nullptr) 
+				while ((next_videoFrame = videoFile.GetFrame(CodecType::VIDEOCODEC)) == nullptr)
 				{
 					//Error occured.
 					if ((errorCheck = videoFile.checkIsValid()) == nullptr) continue; //Try to read again if no detectable error.
@@ -161,16 +164,45 @@ int main(int argc, char** argv)
 		//===For Audio===//
 		if (audioStreamIndex >= 0) //Check if audio stream is available.
 		{
+			//Gets the next frame when it's time.
+			if (videoFile.GetCurrentPTSTIME(CodecType::AUDIOCODEC) < videoCurrTime)
+			{
+				//Do until an actual frame is available. May cause an infinite loop but just for testing.
+				while ((next_audioFrame = videoFile.GetFrame(CodecType::AUDIOCODEC)) == nullptr)
+				{
+					//Error occured.
+					if ((errorCheck = videoFile.checkIsValid()) == nullptr) continue; //Try to read again if no detectable error.
+					SDL_Log(errorCheck->message.c_str()); //For debugging.
+					if (errorCheck->reachedEOF) break; //can't read from an empty stream. 
+					if (!errorCheck->canRead || !errorCheck->canCodec)
+					{
+						//TODO: Need better error handling, try to resolve error before requesting new frame else may have infinite loop.
+						videoFile.ResetErrorCodes();
+						continue;
+					}
+				}
+			}
+			//*******TODO: ERROR may be caused by reading packets in the first getFrame for video.******
+			// Since packets are shared by both audio and video, when getFrame is called a second time for audio, a new packet is taken using av_read_frame.
+			// This leads to incomplete packets being sent. 1st packet will be sent to video, 2nd to audio, 3rd to video etc.
+			// The same packet should be sent to all stream codecs before calling the next one.
+			// May be better to use a packet queue, so when a packet is sent to all stream codecs, it is removed.
+			// If a new packet is required(incomplete frame), then it'll be read, sent to the codec that needs it, then added to the queue to be sent to other codecs.
+			// The packet queue will contain the packet, and the codecs that read it. e.g. isAudioRead and isVideoRead.
+			// Once number of codecs that read it is == number of valid codecs available(excluding invalid ones) then it can be removed from queue. i.e. isAudioRead and isVideoRead == true;
+			// Before reading another packet for the audio/video codec, first check if any packet in the queue hasn't been read by that codec.
 
-
-
+			//Next audio frame will be in next_audioFrame. Note to check if it's null first.
+			//Convert audio frame to standard format first
+			
+			//play audioframe.
 
 		}
 
 		//===For Input===//
-		tempMessage.clear();
+		/*tempMessage.clear();
 		tempMessage << "Current Video " << videoCurrTime << "  " << "Frame pts time " << videoFile.GetCurrentPTSTIME(videoStreamIndex) << "\n";
-		SDL_Log(tempMessage.str().c_str());
+		SDL_Log(tempMessage.str().c_str());*/
 		
 		//TODO: Allow video to be paused.
 		//TODO: Add UI elements into mainWindow_texture.
