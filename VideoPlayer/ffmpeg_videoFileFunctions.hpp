@@ -1,3 +1,9 @@
+/*
+	File Name: ffmpeg_videoFileFunctions.hpp
+
+	Brief: Declares various utility types and functions used to interact with the video through ffmpeg.
+*/
+
 #ifndef FFMPEG_VIDEOFILEFUNCTIONS_HPP
 #define FFMPEG_VIDEOFILEFUNCTIONS_HPP
 #include "types.hpp"
@@ -99,7 +105,7 @@ public:
 		When all codecs read the packet, it is removed.
 		Packets are read from the queue first, if all packets are already read by that codec, then a new one is read from the container and added to the queue.
 	*/
-	AVPacket** GetPacket(CodecType codec);
+	AVPacket** GetPacket(CodecType codec, bool isClearPackets = false);
 
 private:
 	AVFormatContext* videoContainer = nullptr;

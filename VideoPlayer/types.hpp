@@ -1,3 +1,9 @@
+/*
+	File Name: types.hpp
+
+	Brief: Provides basic includes and type definitions used by most files.
+*/
+
 #ifndef TYPES_HPP
 #define TYPES_HPP
 

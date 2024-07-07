@@ -1,3 +1,9 @@
+/*
+	File Name: ffmpeg_videoFileFunctions.cpp
+
+	Brief: Defines various utility types and functions used to interact with the video through ffmpeg.
+*/
+
 #include "ffmpeg_videoFileFunctions.hpp"
 #include <iostream>
 #include <fstream>
@@ -20,32 +26,37 @@ PacketData::~PacketData()
 }
 
 
-AVPacket** VideoFile::GetPacket(CodecType codecType)
+AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 {
 
 	//TODO: using a list may be more efficient when removing front element.
 	//Update packet queue and remove packets which were read by all codecs.
 
 	std::list<PacketData>::iterator iter;
-	bool breakLoop = false;
-	for (iter = packetArr.begin(); iter != packetArr.end();) //Note the lack of iter++, as the loop won't increment until a packet is removed.
+	
+	//Only set to true, when avcodec_receive_frame has been done. 
+	//This'll prevent packets from being cleared prematurely(even if all codecs have read it) if it's still being used by avcodec_receive_frame.
+	if (isClearPackets)
 	{
-		//Loop through codecReadArr and check if any codec hasn't read it yet.
-		for (int i = 0; i < static_cast<int>(CodecType::END); i++)
+		bool breakLoop = false;
+		for (iter = packetArr.begin(); iter != packetArr.end();) //Note the lack of iter++, as the loop won't increment until a packet is removed.
 		{
-			//If this packet hasn't been read by a codec, then don't remove it.
-			if (iter->codecReadArr[i] == false)
+			//Loop through codecReadArr and check if any codec hasn't read it yet.
+			for (int i = 0; i < static_cast<int>(CodecType::END); i++)
 			{
-				breakLoop = true;
-				break;
+				//If this packet hasn't been read by a codec, then don't remove it.
+				if (iter->codecReadArr[i] == false)
+				{
+					breakLoop = true;
+					break;
+				}
 			}
+			if (breakLoop) break; //This packet(and thus all following packets) has not been read by at least a codec.
+			//Packet has been read by all codecs, so remove it.
+			iter = packetArr.erase(iter);
 		}
-		if (breakLoop) break; //This packet(and thus all following packets) has not been read by at least a codec.
-		//Packet has been read by all codecs, so remove it.
-		iter = packetArr.erase(iter);
+		return nullptr; //Not trying to get a packet.
 	}
-
-
 	//Check if any packet in the queue hasn't been read by the codec yet.
 	for (iter = packetArr.begin(); iter != packetArr.end(); iter++)
 	{
@@ -55,7 +66,7 @@ AVPacket** VideoFile::GetPacket(CodecType codecType)
 		return &iter->packet;
 	}
 	//Add new packet here, as all packets in queue have already been read by this codec.
-	packetArr.emplace_back();
+	packetArr.emplace_back(); //don't use push_back, as it creates a temp copy that'll call the destructor pre-maturely.
 	if (av_read_frame(videoContainer, packetArr.back().packet) < 0)
 	{
 		//Unknown error.
@@ -262,6 +273,9 @@ AVFrame** VideoFile::GetFrame(CodecType codecType)
 		}
 	}
 	//read successful.
+	//Clear all used packets(that have been read by all codecs) after avcodec_receive_frame is finished.
+	//Does not get a packet.
+	GetPacket(codecType, true);
 	return &stream.currFrame;
 }
 
