@@ -8,6 +8,9 @@
 #include "Utility.hpp"
 #include "types.hpp"
 #include "Display.hpp"
+
+
+
 /*-----------------------
 Functions*/
 bool InitializeSystem();
@@ -24,15 +27,26 @@ int main(int argc, char **argv)
 	//Temp error code to indicate unable to initialize system.
 	if(!InitializeSystem()) return 10;
 	//While program is running
-	while (true)
+	SDL_Event sdl_event; bool quit = false;
+	while (!quit)
 	{
-		//Placeholder filename. Next time use window's filemanager to add in files.
-		VideoPlayer::Initialize("C:/Users/onwin/source/repos/VideoPlayer/Assets/Demo/Everlasting Flames - Honkai Impact 3rd.mp4");
+		//TODO: Placeholder filename. Next time use window's filemanager to add in files. 
+		//If unsuccessful Initialization, VideoPlayer::Free will still run, but not the inner loop.
+		if (!VideoPlayer::Initialize("C:/Users/onwin/source/repos/VideoPlayer/Assets/Demo/Everlasting Flames - Honkai Impact 3rd.mp4"))
+		{
+			//Unable to initialize video file, so choose another one.
+			DisplayWindow::DisplayMessageBox("Select another video");
+		}
 		//While video is running
-		while (true)
+		while (VideoPlayer::isRun_Video && !quit)
 		{
 			Update();
 			Draw();
+			//SDL event handling.
+			while (SDL_PollEvent(&sdl_event))
+			{
+				if (sdl_event.type == SDL_QUIT) quit = true;
+			}
 		}
 		VideoPlayer::Free();
 	}
@@ -42,19 +56,8 @@ int main(int argc, char **argv)
 
 bool InitializeSystem()
 {
-	//==========Initialize SDL window system.
-	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0)
-	{
-		SDL_Log("Failed to initialise SDL");
-		return false;
-	}
-
-	//Get computer's dimensions.
-	if (SDL_GetDesktopDisplayMode(0, ) != 0)
-	{
-		SDL_Log("Failed to get computer dimensions");
-		return 1;
-	}
+	//Initialize the program's SDL window.
+	if(!DisplayWindow::Initialize()) return false;
 }
 
 void Update()
@@ -69,5 +72,5 @@ void Draw()
 
 void FreeSystem()
 {
-
+	DisplayWindow::Free();
 }

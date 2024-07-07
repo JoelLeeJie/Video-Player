@@ -1,4 +1,15 @@
-﻿  ffmpeg_videoFileFunctions.cpp
+﻿  Display.cpp
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(110,42): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(116,42): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(119,41): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(120,41): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+  ffmpeg_videoFileFunctions.cpp
   main.cpp
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(25,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
+  deprecated.cpp
+  Utility.cpp
+  Video.cpp
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(25,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
   Generating Code...
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\main.cpp(72): warning C4715: 'InitializeSystem': not all control paths return a value
   VideoPlayer.vcxproj -> C:\Users\onwin\source\repos\VideoPlayer\bin\VideoPlayer.exe

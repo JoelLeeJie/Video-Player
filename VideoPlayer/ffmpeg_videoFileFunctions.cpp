@@ -1,7 +1,7 @@
 /*
 	File Name: ffmpeg_videoFileFunctions.cpp
 
-	Brief: Defines various utility types and functions used to interact with the video through ffmpeg.
+	Brief: Defines various types and functions used to interact with the video through ffmpeg.
 */
 
 #include "ffmpeg_videoFileFunctions.hpp"
@@ -309,7 +309,7 @@ int VideoFile::GetVideoStreamIndex()
 	return videoStreamIndex;
 }
 
-SDL_Rect VideoFile::GetVideoDimensions()
+SDL_Rect VideoFile::GetVideoDimensions() const
 {
 	SDL_Rect returnVal{};
 	for (const StreamData& streamData : streamArr)

@@ -7,18 +7,26 @@
 	To change video, call free and initialise.
 
 	Only a single video can be played at a time.
+		
+	Handles reading data from video file through ffmpeg_videoFileFunctions, as well as displaying data through DisplayWindow.
 */
 
 #include <string>
-
-//There'll only be one instance of this class, representing the current video being played.
+#include "ffmpeg_videoFileFunctions.hpp"
+/*
+	There'll only be one instance of this class, representing the current video being played.
+	Does not only control reading of data from file, but also displaying of data to window. 
+*/
 static class VideoPlayer
 {
 	static std::string video_filepath;
+	static VideoFile* video_file;
 
+public:
+	static bool isRun_Video;
 
-	public:
-	static void Initialize(std::string video_filepath);
+	//Requires DisplayWindow to be initialized.
+	static bool Initialize(std::string video_filepath);
 	static void Update();
 	static void Draw();
 	static void Free();

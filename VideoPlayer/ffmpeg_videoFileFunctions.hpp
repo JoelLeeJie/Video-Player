@@ -93,7 +93,7 @@ public:
 	/*Returns -1 if none found*/
 	int GetVideoStreamIndex();
 
-	SDL_Rect GetVideoDimensions();
+	SDL_Rect GetVideoDimensions() const;
 
 	/*
 	Will destroy the old frame, leaving the new frame in its place.

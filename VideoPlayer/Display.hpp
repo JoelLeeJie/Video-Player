@@ -1,19 +1,68 @@
 /*
 	File Name: Display.hpp
 
-	Brief: Declares utility functions to handle the program's window display.
+	Brief: Declares functions and class to handle the program's window display.
+
+	TODO: Add capability for window resizing.
 */
 
 #ifndef DISPLAY_HPP
 #define DISPLAY_HPP
 
 #include "types.hpp"
-
-namespace Display
+#include "ffmpeg_videoFileFunctions.hpp"
+/*
+	Only one instance of this in the program. Controls the program's window.
+*/
+static class DisplayWindow
 {
-	//The device dimensions.
-	extern SDL_DisplayMode device_dimensions;
+	//The device dimensions and various parameters.
+	static SDL_DisplayMode device_dimensions;
+	//Dimensions for the program's window.
+	static int window_dimensions[2];
+	/*The dimensions in which the video can be displayed in.
+	For example, additional UI may make this smaller than window dimensions.
+	
+	NEEDS TO BE LIMITED TO THE VIDEO DIMENSIONS.
+	*/
+	static SDL_Rect videoDisplayRect;
 
+	//The window the program will run on.
+	static SDL_Window* mainWindow;
+	//Used to render the window
+	static SDL_Renderer* mainWindow_renderer;
+	//Used to draw on, before copying to the renderer.
+	static SDL_Texture* videoDisplayTexture;
+
+public:
+
+
+	//=======Functions
+
+	//Called once at the start of the program to initialise the program's window.
+	static bool Initialize();
+
+	//Called once at the end of the program to free resources related to the program's window.
+	static bool Free();
+
+	static void DisplayMessageBox(std::string message);
+
+	//=======Setters and Getters
+	static SDL_DisplayMode GetDeviceDimensions() { return device_dimensions; }
+	static Vec2 GetWindowDimensions() {
+		return Vec2{ static_cast<double>(window_dimensions[0]), static_cast<double>(window_dimensions[1]) };
+	}
+	static SDL_Rect GetVideoDimensions() {
+		return videoDisplayRect;
+	}
+	//Needs to be run everytime a new video is used.
+	static void LimitVideoDisplayRect_to_Video(const VideoFile* video_file){
+		videoDisplayRect = DisplayUtility::AdjustRectangle(video_file->GetVideoDimensions(), videoDisplayRect, false);
+	}
+};
+
+namespace DisplayUtility
+{
 	/*
 	Converts a video frame to an sdl texture, only within the rectangular area.
 	Call before changing the texture.

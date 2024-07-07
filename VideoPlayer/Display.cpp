@@ -8,7 +8,7 @@
 #include "Display.hpp"
 #include <string>
 #include <exception>
-
+#include "types.hpp"
 /*
  //init
   SDL_Init(SDL_INIT_VIDEO);
@@ -67,10 +67,66 @@
 
 */
 //https://stackoverflow.com/questions/17579286/sdl2-0-alternative-for-sdl-overlay
-namespace Display
-{
-	SDL_DisplayMode device_dimensions;
 
+/*---------------
+DisplayWindow class*/
+SDL_Window* DisplayWindow::mainWindow;
+SDL_Renderer* DisplayWindow::mainWindow_renderer;
+int DisplayWindow::window_dimensions[2];
+SDL_DisplayMode DisplayWindow::device_dimensions;
+
+
+bool DisplayWindow::Initialize()
+{
+	//==========Initialize SDL window system.
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0)
+	{
+		SDL_Log("Failed to initialise SDL");
+		return false;
+	}
+
+	//Get computer's dimensions.
+	if (SDL_GetDesktopDisplayMode(0, &device_dimensions) != 0)
+	{
+		SDL_Log("Failed to get computer dimensions");
+		return false;
+	}
+
+	//Temporary starting dimensions of program's window.
+	window_dimensions[0] = 1400;
+	window_dimensions[1] = 700;
+
+	//Initialize the basic window/renderer/texture/rect to draw video on.
+	mainWindow = SDL_CreateWindow("Joel's Video Player", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_dimensions[0], window_dimensions[1], SDL_WINDOW_RESIZABLE);
+	mainWindow_renderer = SDL_CreateRenderer(mainWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+	SDL_SetRenderDrawColor(mainWindow_renderer, 0, 0, 0, 255);
+	if (!mainWindow || !mainWindow_renderer)
+	{
+		SDL_Log("Failed to init main window/renderer");
+		return 1;
+	}
+
+	//Video display texture for now will be same as program window.
+	SDL_Texture* videoDisplayTexture = SDL_CreateTexture(mainWindow_renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, window_dimensions[0], window_dimensions[1]);
+	//The actual dimensions the video can display in, for now is set to window_dimensions.
+	SDL_Rect videoDisplayRect = { 0, 0, window_dimensions[0], window_dimensions[1] };
+}
+
+
+bool DisplayWindow::Free()
+{
+	if (mainWindow_renderer) SDL_DestroyRenderer(mainWindow_renderer);
+	if (mainWindow) SDL_DestroyWindow(mainWindow);
+	if (videoDisplayTexture) SDL_DestroyTexture(videoDisplayTexture);
+}
+
+void DisplayWindow::DisplayMessageBox(std::string message)
+{
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Joel's Video Player", message.c_str(), mainWindow);
+}
+
+namespace DisplayUtility
+{
 	void YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_Rect* image_displayArea)
 	{
 		if (!imageFrame || !texture || !image_displayArea) return;

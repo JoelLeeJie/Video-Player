@@ -146,11 +146,16 @@
     <ClCompile Include="Display.cpp" />
     <ClCompile Include="ffmpeg_videoFileFunctions.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="deprecated.cpp" />
+    <ClCompile Include="Utility.cpp" />
+    <ClCompile Include="Video.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Display.hpp" />
     <ClInclude Include="ffmpeg_videoFileFunctions.hpp" />
     <ClInclude Include="types.hpp" />
+    <ClInclude Include="Utility.hpp" />
+    <ClInclude Include="Video.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

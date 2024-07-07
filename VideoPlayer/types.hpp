@@ -20,4 +20,9 @@ extern "C" //Required for compatibility with c++.
 }
 #include <SDL.h>
 #include <SDL_thread.h>
+
+struct Vec2
+{
+	double x, y;
+};
 #endif
