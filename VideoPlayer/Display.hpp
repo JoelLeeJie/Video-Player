@@ -11,6 +11,28 @@
 
 #include "types.hpp"
 #include "ffmpeg_videoFileFunctions.hpp"
+namespace DisplayUtility
+{
+	/*
+	Converts a video frame to an sdl texture, only within the rectangular area.
+	Call before changing the texture.
+	*/
+	void YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_Rect* image_displayArea);
+
+	/*
+	Inserts sdl texture into the renderer and presents it.
+	Call when texture is finished, as it clears renderer.
+	Will stretch the texture to fill the entire renderer.
+	*/
+	void DrawTexture(SDL_Renderer* renderer, SDL_Texture* texture);
+
+	/*
+		Will return size of video display rectangle limited to limitDimensions, following aspect ratio.
+		isTrueSize --> True to follow video size, false to expand video to limitDimensions(fit-to-following aspect ratio)
+	*/
+	SDL_Rect AdjustRectangle(SDL_Rect videoDimensions, SDL_Rect limitDimensions, bool isTrueSize = false);
+}
+
 /*
 	Only one instance of this in the program. Controls the program's window.
 */
@@ -41,11 +63,11 @@ public:
 
 	//Called once at the start of the program to initialise the program's window.
 	static bool Initialize();
-
 	//Called once at the end of the program to free resources related to the program's window.
-	static bool Free();
+	static void Free();
 
 	static void DisplayMessageBox(std::string message);
+	static bool DrawAVFrame(AVFrame** video_frame);
 
 	//=======Setters and Getters
 	static SDL_DisplayMode GetDeviceDimensions() { return device_dimensions; }
@@ -61,25 +83,5 @@ public:
 	}
 };
 
-namespace DisplayUtility
-{
-	/*
-	Converts a video frame to an sdl texture, only within the rectangular area.
-	Call before changing the texture.
-	*/
-	void YUV420P_TO_SDLTEXTURE(AVFrame* imageFrame, SDL_Texture* texture, const SDL_Rect* image_displayArea);
 
-	/*
-	Inserts sdl texture into the renderer and presents it.
-	Call when texture is finished, as it clears renderer.
-	Will stretch the texture to fill the entire renderer.
-	*/
-	void DrawTexture(SDL_Renderer* renderer, SDL_Texture* texture);
-
-	/*
-		Will return size of video display rectangle limited to limitDimensions, following aspect ratio.
-		isTrueSize --> True to follow video size, false to expand video to limitDimensions(fit-to-following aspect ratio)
-	*/
-	SDL_Rect AdjustRectangle(SDL_Rect videoDimensions, SDL_Rect limitDimensions, bool isTrueSize = false);
-}
 #endif

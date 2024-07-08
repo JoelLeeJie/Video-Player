@@ -74,6 +74,8 @@ SDL_Window* DisplayWindow::mainWindow;
 SDL_Renderer* DisplayWindow::mainWindow_renderer;
 int DisplayWindow::window_dimensions[2];
 SDL_DisplayMode DisplayWindow::device_dimensions;
+SDL_Texture* DisplayWindow::videoDisplayTexture;
+SDL_Rect DisplayWindow::videoDisplayRect;
 
 
 bool DisplayWindow::Initialize()
@@ -103,17 +105,22 @@ bool DisplayWindow::Initialize()
 	if (!mainWindow || !mainWindow_renderer)
 	{
 		SDL_Log("Failed to init main window/renderer");
-		return 1;
+		return false;
 	}
 
 	//Video display texture for now will be same as program window.
-	SDL_Texture* videoDisplayTexture = SDL_CreateTexture(mainWindow_renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, window_dimensions[0], window_dimensions[1]);
+	videoDisplayTexture = SDL_CreateTexture(mainWindow_renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, window_dimensions[0], window_dimensions[1]);
+	if (!videoDisplayTexture)
+	{
+		SDL_Log("Failed to init main window's texture");
+		return false;
+	}
 	//The actual dimensions the video can display in, for now is set to window_dimensions.
-	SDL_Rect videoDisplayRect = { 0, 0, window_dimensions[0], window_dimensions[1] };
+	videoDisplayRect = { 0, 0, window_dimensions[0], window_dimensions[1] };
 }
 
 
-bool DisplayWindow::Free()
+void DisplayWindow::Free()
 {
 	if (mainWindow_renderer) SDL_DestroyRenderer(mainWindow_renderer);
 	if (mainWindow) SDL_DestroyWindow(mainWindow);
@@ -123,6 +130,14 @@ bool DisplayWindow::Free()
 void DisplayWindow::DisplayMessageBox(std::string message)
 {
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Joel's Video Player", message.c_str(), mainWindow);
+}
+
+bool DisplayWindow::DrawAVFrame(AVFrame **video_frame)
+{
+	DisplayUtility::YUV420P_TO_SDLTEXTURE(*video_frame, videoDisplayTexture, &videoDisplayRect);
+	DisplayUtility::DrawTexture(mainWindow_renderer, videoDisplayTexture);
+	//Successful drawing of the frame.
+	return true;
 }
 
 namespace DisplayUtility

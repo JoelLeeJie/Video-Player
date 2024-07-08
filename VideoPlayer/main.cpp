@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 	{
 		//TODO: Placeholder filename. Next time use window's filemanager to add in files. 
 		//If unsuccessful Initialization, VideoPlayer::Free will still run, but not the inner loop.
-		if (!VideoPlayer::Initialize("C:/Users/onwin/source/repos/VideoPlayer/Assets/Demo/Everlasting Flames - Honkai Impact 3rd.mp4"))
+		if (!VideoPlayer::Initialize("C:/Users/onwin/source/repos/VideoPlayer/Assets/Demo/Everlasting Flames-Honkai Impact 3rd.mp4"))
 		{
 			//Unable to initialize video file, so choose another one.
 			DisplayWindow::DisplayMessageBox("Select another video");
@@ -63,11 +63,12 @@ bool InitializeSystem()
 void Update()
 {
 	Utility::UpdateDeltaTime();
+	VideoPlayer::Update();
 }
 
 void Draw()
 {
-
+	VideoPlayer::Draw();
 }
 
 void FreeSystem()

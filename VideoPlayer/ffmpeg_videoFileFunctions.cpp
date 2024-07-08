@@ -128,7 +128,11 @@ VideoFile::VideoFile(const std::string &fileName)
 		//Need to alloc memory for codecContext.
 		streamData.codecContext = avcodec_alloc_context3(streamData.codec);
 		//Assigning data to context.
-		avcodec_parameters_to_context(streamData.codecContext, streamData.codecParam);
+		if (avcodec_parameters_to_context(streamData.codecContext, streamData.codecParam) < 0)
+		{
+			errorCodes.message += "Unable to open codec context for stream\n";
+			errorCodes.canCodec = false;
+		}
 		if (avcodec_open2(streamData.codecContext, streamData.codec, NULL) != 0)
 		{
 			errorCodes.message += "Unable to open codec context for stream\n";

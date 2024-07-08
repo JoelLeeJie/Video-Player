@@ -20,12 +20,20 @@
 static class VideoPlayer
 {
 	static std::string video_filepath;
+	//The file to read data from.
 	static VideoFile* video_file;
+	//Representing the current video timestamp. Used for sync.
+	static double curr_video_time;
+
+	static int audio_stream_index, video_stream_index;
+	//Storage for the frames read from the file.
+	static AVFrame **next_video_frame, **next_audio_frame;
 
 public:
 	static bool isRun_Video;
 
-	//Requires DisplayWindow to be initialized.
+	/*Requires DisplayWindow to be initialized.
+	Called once every time a new video file is to be played.*/
 	static bool Initialize(std::string video_filepath);
 	static void Update();
 	static void Draw();

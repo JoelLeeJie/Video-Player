@@ -83,7 +83,7 @@ int main1(int argc, char** argv)
 		if (!errorCheck->canRead || !errorCheck->canCodec)
 		{
 			//Display Message box: "Unable to read video file"
-			DisplayWindow::DisplayMessageBox("Unable to read video file\nChoose another Video\n");
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Joel's Video Player", "Unable to read video file\nChoose another Video\n", mainWindow);
 		}
 		videoFile.ResetErrorCodes();
 	}
@@ -107,7 +107,7 @@ int main1(int argc, char** argv)
 	SDL_Texture* videoDisplayTexture = SDL_CreateTexture(mainWindow_renderer, SDL_PIXELFORMAT_IYUV, SDL_TEXTUREACCESS_STREAMING, windowDimensions[0], windowDimensions[1]);
 	//The actual size the video will display at, if possible will follow videoDisplayTexture.
 	SDL_Rect videoDisplayRect = {0, 0, windowDimensions[0], windowDimensions[1]};
-	videoDisplayRect = Display::AdjustRectangle(videoFile.GetVideoDimensions(), videoDisplayRect, false); //Makes sure video can fit in display rect with no issue.
+	videoDisplayRect = DisplayUtility::AdjustRectangle(videoFile.GetVideoDimensions(), videoDisplayRect, false); //Makes sure video can fit in display rect with no issue.
 	
 	//TODO: Set it so that video seeking(e.g. going backwards/forwards in the video/audio) is allowed.
 	//Points to the frame within the streamArr, so that functions like ResizeFrame can change the actual data.
@@ -153,7 +153,7 @@ int main1(int argc, char** argv)
 			}
 			try
 			{
-				if (next_videoFrame) Display::YUV420P_TO_SDLTEXTURE(*next_videoFrame, videoDisplayTexture, &videoDisplayRect);
+				if (next_videoFrame) DisplayUtility::YUV420P_TO_SDLTEXTURE(*next_videoFrame, videoDisplayTexture, &videoDisplayRect);
 			}
 			catch (std::exception& e)
 			{
@@ -209,7 +209,7 @@ int main1(int argc, char** argv)
 
 		//Finally, draw texture
 		//Can add on UI and other things before drawing.
-		Display::DrawTexture(mainWindow_renderer, videoDisplayTexture);
+		DisplayUtility::DrawTexture(mainWindow_renderer, videoDisplayTexture);
 	}
 	
 
