@@ -28,6 +28,7 @@ int main(int argc, char **argv)
 	if(!InitializeSystem()) return 10;
 	//While program is running
 	SDL_Event sdl_event; bool quit = false;
+	//Runs every video chosen.
 	while (!quit)
 	{
 		//TODO: Placeholder filename. Next time use window's filemanager to add in files. 
@@ -40,6 +41,7 @@ int main(int argc, char **argv)
 		//While video is running
 		while (VideoPlayer::isRun_Video && !quit)
 		{
+			//TODO: There's a mem leak, as can be seen from task manager where mem usage keeps increasing.
 			Update();
 			Draw();
 			//SDL event handling.

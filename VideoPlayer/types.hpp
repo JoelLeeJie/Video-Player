@@ -18,6 +18,7 @@ extern "C" //Required for compatibility with c++.
 	#include <libavutil/dict.h>
 	#include <libavutil/imgutils.h>
 	#include <libavcodec/avcodec.h>
+	#include <libswresample/swresample.h>
 }
 #include <SDL.h>
 #include <SDL_thread.h>

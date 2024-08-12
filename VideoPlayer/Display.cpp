@@ -9,6 +9,7 @@
 #include <string>
 #include <exception>
 #include "types.hpp"
+#include <iostream>
 /*
  //init
   SDL_Init(SDL_INIT_VIDEO);
@@ -80,6 +81,7 @@ SDL_Rect DisplayWindow::videoDisplayRect;
 
 bool DisplayWindow::Initialize()
 {
+	//_putenv("SDL_AUDIODRIVER=directsound");
 	//==========Initialize SDL window system.
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0)
 	{
@@ -132,12 +134,88 @@ void DisplayWindow::DisplayMessageBox(std::string message)
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Joel's Video Player", message.c_str(), mainWindow);
 }
 
-bool DisplayWindow::DrawAVFrame(AVFrame **video_frame)
+bool DisplayWindow::DrawAVFrame(AVFrame** video_frame)
 {
 	DisplayUtility::YUV420P_TO_SDLTEXTURE(*video_frame, videoDisplayTexture, &videoDisplayRect);
 	DisplayUtility::DrawTexture(mainWindow_renderer, videoDisplayTexture);
 	//Successful drawing of the frame.
 	return true;
+}
+
+bool DisplayWindow::PlayAVFrame(AVFrame** audio_frame, const AVCodecContext* audio_codec_context)
+{
+	if (!audio_frame || !audio_codec_context)
+	{
+		std::cout << "Accessing non-existent codec context/audio frame in DisplayWindow::PlayAVFrame()\n";
+		return false;
+	}
+	//Taken from https://stackoverflow.com/questions/55438697/playing-sound-from-a-video-using-ffmpeg-and-sdl-queueaudio-results-in-high-pitch
+
+	SwrContext* resampler = swr_alloc_set_opts(NULL,
+		audio_codec_context->channel_layout,
+		AV_SAMPLE_FMT_S16,
+		44100,
+		audio_codec_context->channel_layout,
+		audio_codec_context->sample_fmt,
+		audio_codec_context->sample_rate,
+		0,
+		NULL);
+	swr_init(resampler);
+
+	
+	SDL_AudioSpec want, have;
+	SDL_zero(want);
+	SDL_zero(have);
+	want.freq = 44100;
+	want.channels = audio_codec_context->channels;
+	want.format = AUDIO_S16SYS;
+	want.silence = 0;
+	//want.samples = 1024;
+	static SDL_AudioDeviceID device = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
+	if (device == 0)
+	{
+		std::cout << SDL_GetError();
+		return false;
+	}
+	SDL_PauseAudioDevice(device, 0);
+
+	SDL_QueueAudio(device, (*audio_frame)->data[0], (*audio_frame)->linesize[0]);
+	//int ret = 0;
+	//AVFrame* frame = *audio_frame;
+	//AVFrame* audioframe = av_frame_alloc();
+	//int dst_samples = frame->channels * av_rescale_rnd(
+	//	swr_get_delay(resampler, frame->sample_rate)
+	//	+ frame->nb_samples,
+	//	44100,
+	//	frame->sample_rate,
+	//	AV_ROUND_UP);
+	//uint8_t* audiobuf = NULL;
+	//ret = av_samples_alloc(&audiobuf,
+	//	NULL,
+	//	1,
+	//	dst_samples,
+	//	AV_SAMPLE_FMT_S16,
+	//	1);
+	//dst_samples = frame->channels * swr_convert(
+	//	resampler,
+	//	&audiobuf,
+	//	dst_samples,
+	//	(const uint8_t**)frame->data,
+	//	frame->nb_samples);
+	//ret = av_samples_fill_arrays(audioframe->data,
+	//	audioframe->linesize,
+	//	audiobuf,
+	//	1,
+	//	dst_samples,
+	//	AV_SAMPLE_FMT_S16,
+	//	1);
+	//SDL_QueueAudio(device,
+	//	audioframe->data[0],
+	//	audioframe->linesize[0]);
+
+
+	swr_free(&resampler);
+	//SDL_CloseAudioDevice(device);
 }
 
 namespace DisplayUtility

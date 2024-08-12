@@ -100,12 +100,18 @@ public:
 	*/
 	void ResizeVideoFrame(AVFrame*& originalFrame, int width, int height);
 	
+
 	/*
 		Gets a packet from the queue for that codec.
 		When all codecs read the packet, it is removed.
 		Packets are read from the queue first, if all packets are already read by that codec, then a new one is read from the container and added to the queue.
 	*/
 	AVPacket** GetPacket(CodecType codec, bool isClearPackets = false);
+
+	/*
+		Returns stream data.
+	*/
+	StreamData GetStreamData(int stream_index);
 
 private:
 	AVFormatContext* videoContainer = nullptr;

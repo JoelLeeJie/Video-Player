@@ -38,6 +38,17 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 	//This'll prevent packets from being cleared prematurely(even if all codecs have read it) if it's still being used by avcodec_receive_frame.
 	if (isClearPackets)
 	{
+		//Emergency clear if packet list gets too big, 1000 is an arbitrary large number.
+		if (packetArr.size() >= 500)
+		{
+			int counter = 0;
+			//Clear the first 500 of the list.
+			for (iter = packetArr.begin(); iter != packetArr.end() && counter < 250; counter++)
+			{
+				//Erase the current element and move to the next.
+				iter = packetArr.erase(iter);
+			}
+		}
 		bool breakLoop = false;
 		for (iter = packetArr.begin(); iter != packetArr.end();) //Note the lack of iter++, as the loop won't increment until a packet is removed.
 		{
@@ -67,6 +78,7 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 	}
 	//Add new packet here, as all packets in queue have already been read by this codec.
 	packetArr.emplace_back(); //don't use push_back, as it creates a temp copy that'll call the destructor pre-maturely.
+	//Storing data in the newly added packet.
 	if (av_read_frame(videoContainer, packetArr.back().packet) < 0)
 	{
 		//Unknown error.
@@ -187,7 +199,7 @@ void VideoFile::PrintDetails(std::ostream& output)
 			output << "Video Codec: resolution " << streamData.codecParam->width << " x " << streamData.codecParam->height;
 			break;
 		case AVMEDIA_TYPE_AUDIO:
-			//output << "Audio Codec: channels " << streamData.codecParam->channels << ", sample rate " << streamData.codecParam->sample_rate;
+			output << "Audio Codec: channels " << streamData.codecParam->channels << ", sample rate " << streamData.codecParam->sample_rate;
 			break;
 		}
 		output << "\nBitRate: " << streamData.codecParam->bit_rate << "\n";
@@ -408,4 +420,14 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 	originalFrame->pts = originalPts; //So that the new frame will have the old frame's time.
 	originalFrame->pkt_dts = originalDts;
 
+}
+
+StreamData VideoFile::GetStreamData(int stream_index)
+{
+	if (stream_index == -1)
+	{
+		std::cout << "Accessing non-existent stream, VideoFile::GetStreamData()\n";
+		return StreamData{};
+	}
+	return streamArr[stream_index];
 }

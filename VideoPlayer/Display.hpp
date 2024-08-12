@@ -68,6 +68,7 @@ public:
 
 	static void DisplayMessageBox(std::string message);
 	static bool DrawAVFrame(AVFrame** video_frame);
+	static bool PlayAVFrame(AVFrame** audio_frame, const AVCodecContext* audio_codec_ctxt);
 
 	//=======Setters and Getters
 	static SDL_DisplayMode GetDeviceDimensions() { return device_dimensions; }

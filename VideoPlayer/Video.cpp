@@ -77,6 +77,7 @@ bool VideoPlayer::Initialize(std::string video_filepath)
 
 
 	isRun_Video = true; 
+	return true;
 }
 void VideoPlayer::Update()
 {
@@ -88,6 +89,7 @@ void VideoPlayer::Update()
 	//Playing video stream, check if it has a video stream first.
 	if (video_stream_index != -1)
 	{
+		num_retries = 2;
 		//Get the stream timestamp to compare to the actual video timestamp.
 		stream_timestamp = video_file->GetCurrentPTSTIME(CodecType::VIDEOCODEC);
 		//Get the next frame when it's time.
@@ -106,9 +108,28 @@ void VideoPlayer::Update()
 		}
 	}
 
+
 	//TODO: Audio
+	//Playing audio stream
+	if (audio_stream_index != -1)
+	{
+		num_retries = 2;
+		//Get stream timestamp and compare with actual timestamp.
+		stream_timestamp = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
+		//Get next frame if actual timestamp has surpassed stream's timestamp.
+		if (stream_timestamp < curr_video_time)
+		{
+			next_audio_frame = video_file->GetFrame(CodecType::AUDIOCODEC);
+			//It may fail sometimes, retry for X num of times before giving up.
+			while (num_retries-- && next_audio_frame == nullptr)
+			{
+				next_audio_frame = video_file->GetFrame(CodecType::AUDIOCODEC);
+			}
+		}
+	}
 
-
+	//Every frame, update the new time.
+	//This can be changed to make the video run faster or slower.
 	curr_video_time += Utility::deltaTime;
 }
 void VideoPlayer::Draw()
@@ -116,6 +137,17 @@ void VideoPlayer::Draw()
 	if (next_video_frame)
 	{
 		DisplayWindow::DrawAVFrame(next_video_frame);
+	}
+	else
+	{
+		std::cout << video_file->checkIsValid()->message;
+		video_file->ResetErrorCodes();
+	}
+
+	if (next_audio_frame)
+	{
+		//TODO: audio
+		DisplayWindow::PlayAVFrame(next_audio_frame, video_file->GetStreamData(audio_stream_index).codecContext);
 	}
 	else
 	{
