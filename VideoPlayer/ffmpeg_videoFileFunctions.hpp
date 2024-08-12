@@ -37,7 +37,7 @@ public:
 struct StreamData
 {
 	AVStream* stream{}; //Audio/Video/other stream to read from. Pointer to the stream in videoContainer (AVFormatContext).
-	AVCodec* codec{};
+	const AVCodec* codec{};
 	AVCodecParameters* codecParam{}; //Details of codec
 	AVCodecContext* codecContext{}; //Used to decode compressed packets. Need to alloc/dealloc memory for this variable.
 	//temporary variables used to store data//

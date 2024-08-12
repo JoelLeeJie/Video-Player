@@ -187,7 +187,7 @@ void VideoFile::PrintDetails(std::ostream& output)
 			output << "Video Codec: resolution " << streamData.codecParam->width << " x " << streamData.codecParam->height;
 			break;
 		case AVMEDIA_TYPE_AUDIO:
-			output << "Audio Codec: channels " << streamData.codecParam->channels << ", sample rate " << streamData.codecParam->sample_rate;
+			//output << "Audio Codec: channels " << streamData.codecParam->channels << ", sample rate " << streamData.codecParam->sample_rate;
 			break;
 		}
 		output << "\nBitRate: " << streamData.codecParam->bit_rate << "\n";
