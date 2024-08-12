@@ -14,7 +14,7 @@ C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(41,2): warning C40
 C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.hpp(84,2): warning C4091: 'static ': ignored on left of 'DisplayWindow' when no variable is declared
   Generating Code...
 C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(80): warning C4715: 'VideoPlayer::Initialize': not all control paths return a value
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\main.cpp(61): warning C4715: 'InitializeSystem': not all control paths return a value
 C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\main.cpp(55): warning C4715: 'SDL_main': not all control paths return a value
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\main.cpp(61): warning C4715: 'InitializeSystem': not all control paths return a value
 C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(120): warning C4715: 'DisplayWindow::Initialize': not all control paths return a value
   VideoPlayer.vcxproj -> C:\Users\onwin\source\repos\VideoPlayer\bin\VideoPlayer.exe
