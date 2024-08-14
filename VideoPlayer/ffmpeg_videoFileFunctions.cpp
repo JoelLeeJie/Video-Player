@@ -160,6 +160,8 @@ VideoFile::VideoFile(const std::string &fileName)
 		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_AUDIO)
 		{
 			audioStreamIndex = index;
+			//TODO: idk if should be this.
+			//streamData.codecContext->request_sample_fmt = AV_SAMPLE_FMT_S16;
 		}
 		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
@@ -431,3 +433,4 @@ StreamData VideoFile::GetStreamData(int stream_index)
 	}
 	return streamArr[stream_index];
 }
+

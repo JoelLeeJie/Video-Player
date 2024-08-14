@@ -29,6 +29,8 @@ static class VideoPlayer
 	//Storage for the frames read from the file.
 	static AVFrame **next_video_frame, **next_audio_frame;
 
+	static SDL_AudioSpec audio_device_specs;
+
 public:
 	static bool isRun_Video;
 
@@ -38,4 +40,7 @@ public:
 	static void Update();
 	static void Draw();
 	static void Free();
+	static void AudioCallback(void* userdata, Uint8* buffer, int buffer_length);
+	static bool InitializeAudioDevice(const AVCodecContext* audio_codec_context);
+	static bool GetAudio(Uint8* audio_buffer, int* stored_size);
 };

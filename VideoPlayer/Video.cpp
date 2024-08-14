@@ -23,7 +23,8 @@ VideoFile* VideoPlayer::video_file;
 bool VideoPlayer::isRun_Video;
 double VideoPlayer::curr_video_time;
 int VideoPlayer::audio_stream_index, VideoPlayer::video_stream_index;
-AVFrame **VideoPlayer::next_audio_frame, **VideoPlayer::next_video_frame;
+AVFrame** VideoPlayer::next_audio_frame, ** VideoPlayer::next_video_frame;
+SDL_AudioSpec VideoPlayer::audio_device_specs;
 
 bool VideoPlayer::Initialize(std::string video_filepath)
 {
@@ -76,16 +77,16 @@ bool VideoPlayer::Initialize(std::string video_filepath)
 
 
 
-	isRun_Video = true; 
+	isRun_Video = true;
 	return true;
 }
 void VideoPlayer::Update()
 {
-	double stream_timestamp; 
+	double stream_timestamp;
 	int num_retries = 2;
 	//Used to resize the video to fit within program window.
 	SDL_Rect video_dimensions = DisplayWindow::GetVideoDimensions();
-	
+
 	//Playing video stream, check if it has a video stream first.
 	if (video_stream_index != -1)
 	{
@@ -109,24 +110,6 @@ void VideoPlayer::Update()
 	}
 
 
-	//TODO: Audio
-	//Playing audio stream
-	if (audio_stream_index != -1)
-	{
-		num_retries = 2;
-		//Get stream timestamp and compare with actual timestamp.
-		stream_timestamp = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
-		//Get next frame if actual timestamp has surpassed stream's timestamp.
-		if (stream_timestamp < curr_video_time)
-		{
-			next_audio_frame = video_file->GetFrame(CodecType::AUDIOCODEC);
-			//It may fail sometimes, retry for X num of times before giving up.
-			while (num_retries-- && next_audio_frame == nullptr)
-			{
-				next_audio_frame = video_file->GetFrame(CodecType::AUDIOCODEC);
-			}
-		}
-	}
 
 	//Every frame, update the new time.
 	//This can be changed to make the video run faster or slower.
@@ -140,22 +123,245 @@ void VideoPlayer::Draw()
 	}
 	else
 	{
-		std::cout << video_file->checkIsValid()->message;
-		video_file->ResetErrorCodes();
+		const VideoFileError* err = video_file->checkIsValid();
+		if (err)
+		{
+			std::cout << err->message;
+			video_file->ResetErrorCodes();
+		}
 	}
 
-	if (next_audio_frame)
-	{
-		//TODO: audio
-		DisplayWindow::PlayAVFrame(next_audio_frame, video_file->GetStreamData(audio_stream_index).codecContext);
-	}
-	else
-	{
-		std::cout << video_file->checkIsValid()->message;
-		video_file->ResetErrorCodes();
-	}
+	//TODO: This needs to be run per video instead of just at program start.
+	static bool once = []() {
+		InitializeAudioDevice(video_file->GetStreamData(audio_stream_index).codecContext);
+		return true;
+		} ();
+
+		if (!next_audio_frame)
+		{
+			const VideoFileError* err = video_file->checkIsValid();
+			if (err)
+			{
+				std::cout << err->message;
+				video_file->ResetErrorCodes();
+			}
+		}
 }
 void VideoPlayer::Free()
 {
-	if(video_file) delete video_file;
+	if (video_file) delete video_file;
+}
+
+/*
+	Write data in AVFrame to the buffer.
+	If data written does not == buffer_length, then get more data to write.
+	If there's excess data in AVFrame, then store it temporarily and wait for the next callback to put it in.
+*/
+void VideoPlayer::AudioCallback(void* userdata, Uint8* output_buffer, int buffer_length)
+{
+	//Don't play audio if it's ahead of actual video time.
+	double stream_timestamp = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
+	if ((stream_timestamp > curr_video_time) || audio_stream_index == -1) return;
+	/*if (next_audio_frame == nullptr || (*next_audio_frame)->data[0] == nullptr || (*next_audio_frame)->data[0][0] == '\0') return;*/
+
+	//Stores excess audio data until next callback. 192000 is the max data size for audio codec in ffmpeg, so just make it 200000 jic.
+	static Uint8 audio_buffer[200000]{};
+	static int stored_data_size = 0;
+	static int stored_data_index = 0;
+
+	while (buffer_length > 0)
+	{
+		if (stored_data_size > 0)
+		{
+			//Data stored is more than what's necessary, so just transfer until buffer is full and return.
+			if (stored_data_size > buffer_length)
+			{
+				//Start from [index, index + length - 1]
+				std::memcpy(output_buffer, audio_buffer + stored_data_index, buffer_length);
+				stored_data_size -= buffer_length;
+				//New index is index + length, or rather the endpt of the transfer.
+				stored_data_index += buffer_length;
+				return;
+			}
+			//If not, it means data needed is < what's currently available.
+			std::memcpy(output_buffer, audio_buffer + stored_data_index, stored_data_size); //Copy over everything.
+			buffer_length -= stored_data_size;
+			//No data left in buffer, so reset both size and index.
+			stored_data_size = 0;
+			stored_data_index = 0;
+			if (buffer_length == 0) return;
+		}
+		int retries = 2;
+		for (; retries > 0; retries--)
+		{
+			if (GetAudio(audio_buffer, &stored_data_size)) break;
+		}
+	}
+}
+
+/*
+	Stores audio inside audio_buffer provided.
+	Returns false if unable to.
+	@param audio_buffer
+	- EMPTY buffer to store data into.
+*/
+bool VideoPlayer::GetAudio(Uint8* audio_buffer, int* stored_size)
+{
+	if (audio_stream_index == -1) return false;
+	next_audio_frame = video_file->GetFrame(CodecType::AUDIOCODEC);
+	if (next_audio_frame == nullptr) return false;
+	AVCodecContext* codec_ctxt = video_file->GetStreamData(audio_stream_index).codecContext;
+	if (codec_ctxt == nullptr) return false;
+
+	//Convert audio into format used by audio device.
+	//Then put into audio buffer.
+	SwrContext* resampler = swr_alloc_set_opts(NULL,
+		codec_ctxt->channel_layout,
+		AV_SAMPLE_FMT_S16,
+		44100,
+		codec_ctxt->channel_layout,
+		codec_ctxt->sample_fmt,
+		codec_ctxt->sample_rate,
+		0,
+		NULL);
+	swr_init(resampler);
+
+	int ret = 0;
+	AVFrame* audioframe = av_frame_alloc();
+	int dst_samples = (*next_audio_frame)->channels * av_rescale_rnd(
+		swr_get_delay(resampler, (*next_audio_frame)->sample_rate)
+		+ (*next_audio_frame)->nb_samples,
+		44100,
+		(*next_audio_frame)->sample_rate,
+		AV_ROUND_UP);
+	uint8_t* audiobuf = NULL;
+	ret = av_samples_alloc(&audiobuf,
+		NULL,
+		1,
+		dst_samples,
+		AV_SAMPLE_FMT_S16,
+		1);
+	dst_samples = (*next_audio_frame)->channels * swr_convert(
+		resampler,
+		&audiobuf,
+		dst_samples,
+		(const uint8_t**)(*next_audio_frame)->data,
+		(*next_audio_frame)->nb_samples);
+	ret = av_samples_fill_arrays(audioframe->data,
+		audioframe->linesize,
+		audiobuf,
+		1,
+		dst_samples,
+		AV_SAMPLE_FMT_S16,
+		1);
+
+	swr_free(&resampler);
+
+	int stored_end_index{};
+	////Copy all data from frame to the buffer.
+	//for (int channel = 0; channel < audioframe->channels; channel++)
+	//{
+	//	//Don't check if the channel is null.
+	//	if (audioframe->data[channel] == nullptr) continue;
+	//	//Iterate over all data within the channel.
+	//	for (int i = 0; i < audioframe->linesize[0]; i++)
+	//	{
+	//		//TODO: maybe? 
+	//		//Null terminator indicates end of channel.
+	//		//if (audioframe->data[channel][i] == 0) break;
+	//		audio_buffer[stored_end_index] = audioframe->data[channel][i];
+	//		stored_end_index++;
+	//	}
+	//}
+	for (int i = 0; i < audioframe->linesize[0]; i++)
+	{
+		//TODO: maybe? 
+		//Null terminator indicates end of channel.
+		//if (audioframe->data[channel][i] == 0) break;
+		audio_buffer[stored_end_index] = audioframe->data[0][i];
+		stored_end_index++;
+	}
+	*stored_size = stored_end_index;
+	//TODO: free avframe "audioframe".
+
+}
+
+
+
+
+bool VideoPlayer::InitializeAudioDevice(const AVCodecContext* audio_codec_context)
+{
+	//TODO: account for when audio device format (have) does not match actual audio from codec_context, and convert audio to match.
+	if (!audio_codec_context)
+	{
+		std::cout << "Accessing non-existent codec context in DisplayWindow::PlayAVFrame()\n";
+		return false;
+	}
+	//Taken from https://stackoverflow.com/questions/55438697/playing-sound-from-a-video-using-ffmpeg-and-sdl-queueaudio-results-in-high-pitch
+	SDL_AudioSpec want{};
+	SDL_zero(want);
+	want.freq = 44100;
+	want.channels = audio_codec_context->channels;
+	want.format = AUDIO_S16SYS; //Converting this to audio_codec_context->sample_fmt will give a different sound.
+	want.silence = 0;
+	want.samples = 1024;
+	want.userdata = (void*)audio_codec_context;
+	want.callback = VideoPlayer::AudioCallback;
+	static SDL_AudioDeviceID device = SDL_OpenAudioDevice(NULL, 0, &want, &audio_device_specs, 0);
+	if (device == 0)
+	{
+		std::cout << SDL_GetError();
+		return false;
+	}
+
+	//TODO: NOTE that VideoPlayer::AudioCallback is the one that is actually passing in the data, this just inits device.
+
+	//SwrContext* resampler = swr_alloc_set_opts(NULL,
+	//	audio_codec_context->channel_layout,
+	//	AV_SAMPLE_FMT_S16,
+	//	44100,
+	//	audio_codec_context->channel_layout,
+	//	audio_codec_context->sample_fmt,
+	//	audio_codec_context->sample_rate,
+	//	0,
+	//	NULL);
+	//swr_init(resampler);
+
+	//int ret = 0;
+	//AVFrame* frame = *audio_frame;
+	//AVFrame* audioframe = av_frame_alloc();
+	//int dst_samples = frame->channels * av_rescale_rnd(
+	//	swr_get_delay(resampler, frame->sample_rate)
+	//	+ frame->nb_samples,
+	//	44100,
+	//	frame->sample_rate,
+	//	AV_ROUND_UP);
+	//uint8_t* audiobuf = NULL;
+	//ret = av_samples_alloc(&audiobuf,
+	//	NULL,
+	//	1,
+	//	dst_samples,
+	//	AV_SAMPLE_FMT_S16,
+	//	1);
+	//dst_samples = frame->channels * swr_convert(
+	//	resampler,
+	//	&audiobuf,
+	//	dst_samples,
+	//	(const uint8_t**)frame->data,
+	//	frame->nb_samples);
+	//ret = av_samples_fill_arrays(audioframe->data,
+	//	audioframe->linesize,
+	//	audiobuf,
+	//	1,
+	//	dst_samples,
+	//	AV_SAMPLE_FMT_S16,
+	//	1);
+	/*SDL_QueueAudio(device,
+		(*audio_frame)->data[0],
+		(*audio_frame)->linesize[0]);*/
+	SDL_PauseAudioDevice(device, 0);
+
+	//TODO: free avframe "audioframe".
+	//swr_free(&resampler);
+	//SDL_CloseAudioDevice(device);
 }
