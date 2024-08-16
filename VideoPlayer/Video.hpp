@@ -44,3 +44,4 @@ public:
 	static bool InitializeAudioDevice(const AVCodecContext* audio_codec_context);
 	static bool GetAudio(Uint8* audio_buffer, int* stored_size);
 };
+

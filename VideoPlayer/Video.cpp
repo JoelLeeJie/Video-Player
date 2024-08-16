@@ -16,6 +16,8 @@
 #include "Utility.hpp"
 #include <iostream>
 
+void* buffer_to_free = nullptr;
+
 /*---------------------------
 VideoPlayer class variables*/
 std::string VideoPlayer::video_filepath;

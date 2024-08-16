@@ -9,6 +9,7 @@
 #include <fstream>
 #include <string>
 
+
 PacketData::PacketData()
 {
 	packet = av_packet_alloc();
@@ -403,8 +404,10 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 		//Error occured. Note that the rest won't run if prior conditions fulfilled, due to short-circuiting.
 		errorCodes.resizeError = true;
 		errorCodes.message += "Error allocating frame\n";
+		void* buffer_ptr = &originalFrame->data[0];
 		av_frame_unref(tempFrame);
-		av_freep(&tempFrame->data[0]);
+		//if(buffer_ptr) av_free(buffer_ptr);
+		av_frame_free(&tempFrame);
 		return;
 	}
 
@@ -415,8 +418,15 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 
 	//Throw away the old frame and get the new frame.
 	//Dereference buffers before freeing, necessary otherwise there'll be heap corruption.
+	void* buffer_ptr = &originalFrame->data[0];
 	av_frame_unref(originalFrame);
-	av_freep(&originalFrame->data[0]); //Commenting both out will run the video player no issues.
+	//if(buffer_ptr) av_free(buffer_ptr); //Commenting both out will run the video player no issues.
+	av_frame_free(&originalFrame);
+	
+	//Saves the buffer that the previous frame was using(i.e. originalFrame's buffer) and frees it here.
+	static void* prev_buffer = nullptr;
+	if (prev_buffer) av_freep(&prev_buffer);
+	prev_buffer = frame2_buffer;
 
 	originalFrame = tempFrame;
 	originalFrame->pts = originalPts; //So that the new frame will have the old frame's time.
