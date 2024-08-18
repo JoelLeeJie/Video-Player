@@ -13,15 +13,18 @@
 PacketData::PacketData()
 {
 	packet = av_packet_alloc();
+	//TODO: remove
+	//this->packet = nullptr;
 }
 
 PacketData::~PacketData()
 {
 	if (packet)
 	{
+		AVPacket* packetData = packet;
 		//Dereference buffer.
-		av_packet_unref(packet);
-		av_packet_free(&packet);
+		av_packet_unref(packetData);
+		av_packet_free(&packetData);
 		packet = nullptr;
 	}
 }
@@ -34,7 +37,7 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 	//Update packet queue and remove packets which were read by all codecs.
 
 	std::list<PacketData>::iterator iter;
-	
+
 	//Only set to true, when avcodec_receive_frame has been done. 
 	//This'll prevent packets from being cleared prematurely(even if all codecs have read it) if it's still being used by avcodec_receive_frame.
 	if (isClearPackets)
@@ -80,6 +83,15 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 	//Add new packet here, as all packets in queue have already been read by this codec.
 	packetArr.emplace_back(); //don't use push_back, as it creates a temp copy that'll call the destructor pre-maturely.
 	//Storing data in the newly added packet.
+
+	//TODO: remove
+	//TODO: packet may sometimes be 0xcdcdcdcd instead of nullptr, so check for that too.
+	if (packetArr.back().packet == nullptr)
+	{
+		//Unable to allocate packet.
+		packetArr.pop_back(); //destroy the newly created packet data.
+		return nullptr;
+	}
 	if (av_read_frame(videoContainer, packetArr.back().packet) < 0)
 	{
 		//Unknown error.
@@ -94,7 +106,7 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 }
 
 //Returns nullptr if unable to open video file.
-AVFormatContext* GetAVFormat(const std::string &fileName)
+AVFormatContext* GetAVFormat(const std::string& fileName)
 {
 	AVFormatContext* returnVal = avformat_alloc_context();
 	int err;
@@ -102,12 +114,12 @@ AVFormatContext* GetAVFormat(const std::string &fileName)
 	if ((err = avformat_open_input(&returnVal, fileName.c_str(), NULL, NULL)) != 0)
 	{
 		avformat_close_input(&returnVal); //will also free the context.
-		returnVal = nullptr; 
+		returnVal = nullptr;
 	}
 	return returnVal;
 }
 
-VideoFile::VideoFile(const std::string &fileName)
+VideoFile::VideoFile(const std::string& fileName)
 {
 	//1. Point to the video file
 	videoContainer = GetAVFormat(fileName);
@@ -161,8 +173,6 @@ VideoFile::VideoFile(const std::string &fileName)
 		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_AUDIO)
 		{
 			audioStreamIndex = index;
-			//TODO: idk if should be this.
-			//streamData.codecContext->request_sample_fmt = AV_SAMPLE_FMT_S16;
 		}
 		if (streamData.codecParam->codec_type == AVMEDIA_TYPE_VIDEO)
 		{
@@ -192,7 +202,7 @@ VideoFile::~VideoFile()
 void VideoFile::PrintDetails(std::ostream& output)
 {
 	output << "Title: " << videoContainer->iformat->long_name << "\n"
-		<< "Duration: " << videoContainer->duration/AV_TIME_BASE << " secs\n"
+		<< "Duration: " << videoContainer->duration / AV_TIME_BASE << " secs\n"
 		<< "\n<<Stream Data>>\n";
 	for (const StreamData& streamData : streamArr)
 	{
@@ -209,7 +219,7 @@ void VideoFile::PrintDetails(std::ostream& output)
 	}
 }
 
-const VideoFileError *VideoFile::checkIsValid()
+const VideoFileError* VideoFile::checkIsValid()
 {
 	//There's an error.
 	if (!errorCodes.canFind || !errorCodes.canRead || !errorCodes.canCodec || errorCodes.reachedEOF || errorCodes.resizeError)
@@ -247,20 +257,20 @@ AVFrame** VideoFile::GetFrame(CodecType codecType)
 		//Not successful,try to resolve.
 		switch (errVal)
 		{
-		//Reached end of file, need to indicate.
+			//Reached end of file, need to indicate.
 		case AVERROR_EOF:
 			errorCodes.reachedEOF = true;
 			errorCodes.message += std::to_string(index) += " stream has reached EOF\n";
 			return nullptr;
-		//Send a new packet, since incomplete frame.
-		case AVERROR(EAGAIN): 
+			//Send a new packet, since incomplete frame.
+		case AVERROR(EAGAIN):
 			//Read a packet and send it.
 			pPacket = GetPacket(codecType);
 			//Unknown error when getting packet, so return but don't set error codes.
-			if (!pPacket) return nullptr; 
+			if (!pPacket) return nullptr;
 			if ((errVal = avcodec_send_packet(stream.codecContext, *pPacket)) == 0 || errVal == AVERROR(EAGAIN))   //TODO: If exception "Access write violation" thrown here, it means the issue is with resizeVideo function when freeing originalFrame.
 			{
-					continue; //try to read a frame again.
+				continue; //try to read a frame again.
 			}
 			else if (errVal == AVERROR_EOF)
 			{
@@ -282,8 +292,8 @@ AVFrame** VideoFile::GetFrame(CodecType codecType)
 			errorCodes.message += "Unknown error reading frame from ";
 			errorCodes.message += std::to_string(index) += " stream\n";
 			return nullptr;
-		//Unable to resolve.
-		//Read error.
+			//Unable to resolve.
+			//Read error.
 		default:
 			errorCodes.canRead = errorCodes.canCodec = false;
 			errorCodes.message += "Unknown error reading frame from ";
@@ -315,7 +325,7 @@ double VideoFile::GetCurrentPTSTIME(CodecType codecType)
 		index = videoStreamIndex;
 		break;
 	}
-	return static_cast<double>(streamArr[index].stream->time_base.num/static_cast<double>(streamArr[index].stream->time_base.den) * static_cast<double>(streamArr[index].currFrame->pts));
+	return static_cast<double>(streamArr[index].stream->time_base.num / static_cast<double>(streamArr[index].stream->time_base.den) * static_cast<double>(streamArr[index].currFrame->pts));
 }
 
 
@@ -346,7 +356,7 @@ SDL_Rect VideoFile::GetVideoDimensions() const
 /*
 	1. Allocates an sws_context(ffmpeg) if none found/a new one is needed.
 	2. Allocates a temp frame and fills it with required memory.
-	3. 
+	3.
 */
 void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 {
@@ -371,7 +381,7 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 	{
 		if (video_resizeconvert_sws_ctxt) sws_freeContext(video_resizeconvert_sws_ctxt);
 		video_resizeconvert_sws_ctxt = sws_getContext(
-			videoStreamData.codecContext->width, videoStreamData.codecContext->height, videoStreamData.codecContext->pix_fmt, 
+			videoStreamData.codecContext->width, videoStreamData.codecContext->height, videoStreamData.codecContext->pix_fmt,
 			width, height, AV_PIX_FMT_YUV420P, //Change to new height and YUV420P format(standardised to follow sdl display)
 			SWS_BICUBIC, //better quality than billinear
 			NULL,
@@ -422,7 +432,7 @@ void VideoFile::ResizeVideoFrame(AVFrame*& originalFrame, int width, int height)
 	av_frame_unref(originalFrame);
 	//if(buffer_ptr) av_free(buffer_ptr); //Commenting both out will run the video player no issues.
 	av_frame_free(&originalFrame);
-	
+
 	//Saves the buffer that the previous frame was using(i.e. originalFrame's buffer) and frees it here.
 	static void* prev_buffer = nullptr;
 	if (prev_buffer) av_freep(&prev_buffer);

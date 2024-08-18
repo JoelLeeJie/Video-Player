@@ -78,6 +78,9 @@ bool VideoPlayer::Initialize(std::string video_filepath)
 	DisplayWindow::LimitVideoDisplayRect_to_Video(video_file);
 
 
+	//Initialize output audio device to output in desired format.
+	//Needs to be runned once at the start, to enable AudioCallback to start taking in audio input continuously
+	InitializeAudioDevice(video_file->GetStreamData(audio_stream_index).codecContext);
 
 	isRun_Video = true;
 	return true;
@@ -114,6 +117,13 @@ void VideoPlayer::Update()
 
 
 	//Every frame, update the new time.
+	//Sync up with the slowest stream.
+	if (audio_stream_index != -1 && video_stream_index != -1)
+	{
+		double audio_stream_time = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
+		double video_stream_time = video_file->GetCurrentPTSTIME(CodecType::VIDEOCODEC);
+		curr_video_time = (audio_stream_time < video_stream_time) ? audio_stream_time : video_stream_time;
+	}
 	//This can be changed to make the video run faster or slower.
 	curr_video_time += Utility::deltaTime;
 }
@@ -132,25 +142,19 @@ void VideoPlayer::Draw()
 			video_file->ResetErrorCodes();
 		}
 	}
-
-	//TODO: This needs to be run per video instead of just at program start.
-	static bool once = []() {
-		InitializeAudioDevice(video_file->GetStreamData(audio_stream_index).codecContext);
-		return true;
-		} ();
-
-		if (!next_audio_frame)
+	if (!next_audio_frame)
+	{
+		const VideoFileError* err = video_file->checkIsValid();
+		if (err)
 		{
-			const VideoFileError* err = video_file->checkIsValid();
-			if (err)
-			{
-				std::cout << err->message;
-				video_file->ResetErrorCodes();
-			}
+			std::cout << err->message;
+			video_file->ResetErrorCodes();
 		}
+	}
 }
 void VideoPlayer::Free()
 {
+	//TODO: need to fully free everything, to be able to keep taking new videos.
 	if (video_file) delete video_file;
 }
 
@@ -164,6 +168,7 @@ void VideoPlayer::AudioCallback(void* userdata, Uint8* output_buffer, int buffer
 	//Don't play audio if it's ahead of actual video time.
 	double stream_timestamp = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
 	if ((stream_timestamp > curr_video_time) || audio_stream_index == -1) return;
+
 	/*if (next_audio_frame == nullptr || (*next_audio_frame)->data[0] == nullptr || (*next_audio_frame)->data[0][0] == '\0') return;*/
 
 	//Stores excess audio data until next callback. 192000 is the max data size for audio codec in ffmpeg, so just make it 200000 jic.
