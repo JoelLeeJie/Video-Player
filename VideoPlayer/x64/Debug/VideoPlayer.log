@@ -1,7 +1,2 @@
-﻿  Video.cpp
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(46,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.hpp(84,2): warning C4091: 'static ': ignored on left of 'DisplayWindow' when no variable is declared
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(238,18): warning C4244: 'initializing': conversion from 'int64_t' to 'int', possible loss of data
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(374): warning C4715: 'VideoPlayer::InitializeAudioDevice': not all control paths return a value
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(294): warning C4715: 'VideoPlayer::GetAudio': not all control paths return a value
+﻿  ffmpeg_videoFileFunctions.cpp
   VideoPlayer.vcxproj -> C:\Users\onwin\source\repos\VideoPlayer\bin\VideoPlayer.exe

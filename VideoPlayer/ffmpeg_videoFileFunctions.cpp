@@ -90,6 +90,7 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 	{
 		//Unable to allocate packet.
 		packetArr.pop_back(); //destroy the newly created packet data.
+		std::cout << "hi";
 		return nullptr;
 	}
 	if (av_read_frame(videoContainer, packetArr.back().packet) < 0)
@@ -325,6 +326,7 @@ double VideoFile::GetCurrentPTSTIME(CodecType codecType)
 		index = videoStreamIndex;
 		break;
 	}
+	if (streamArr[index].currFrame == nullptr || streamArr[index].currFrame->data[0] == nullptr) return 0;
 	return static_cast<double>(streamArr[index].stream->time_base.num / static_cast<double>(streamArr[index].stream->time_base.den) * static_cast<double>(streamArr[index].currFrame->pts));
 }
 

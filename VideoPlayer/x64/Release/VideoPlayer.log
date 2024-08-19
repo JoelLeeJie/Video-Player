@@ -1,0 +1,25 @@
+﻿  Display.cpp
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.hpp(84,2): warning C4091: 'static ': ignored on left of 'DisplayWindow' when no variable is declared
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(46,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(188,42): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(194,42): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(197,41): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(198,41): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
+  ffmpeg_videoFileFunctions.cpp
+  main.cpp
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(46,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.hpp(84,2): warning C4091: 'static ': ignored on left of 'DisplayWindow' when no variable is declared
+  Utility.cpp
+  Video.cpp
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(46,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.hpp(84,2): warning C4091: 'static ': ignored on left of 'DisplayWindow' when no variable is declared
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(245,18): warning C4244: 'initializing': conversion from 'int64_t' to 'int', possible loss of data
+  Generating code
+  Previous IPDB not found, fall back to full compilation.
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.cpp(123): warning C4715: 'DisplayWindow::Initialize': not all control paths return a value
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\main.cpp(63): warning C4715: 'InitializeSystem': not all control paths return a value
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(383): warning C4715: 'VideoPlayer::InitializeAudioDevice': not all control paths return a value
+C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\main.cpp(57): warning C4715: 'SDL_main': not all control paths return a value
+  All 282 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  VideoPlayer.vcxproj -> C:\Users\onwin\source\repos\VideoPlayer\bin\VideoPlayer.exe

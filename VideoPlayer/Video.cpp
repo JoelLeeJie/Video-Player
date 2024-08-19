@@ -87,7 +87,7 @@ bool VideoPlayer::Initialize(std::string video_filepath)
 }
 void VideoPlayer::Update()
 {
-	double stream_timestamp;
+	double stream_timestamp = 0;
 	int num_retries = 2;
 	//Used to resize the video to fit within program window.
 	SDL_Rect video_dimensions = DisplayWindow::GetVideoDimensions();
@@ -117,15 +117,16 @@ void VideoPlayer::Update()
 
 
 	//Every frame, update the new time.
-	//Sync up with the slowest stream.
+	//Sync up with the slowest stream or sync up with audio stream, choose one.
 	if (audio_stream_index != -1 && video_stream_index != -1)
 	{
 		double audio_stream_time = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
 		double video_stream_time = video_file->GetCurrentPTSTIME(CodecType::VIDEOCODEC);
 		curr_video_time = (audio_stream_time < video_stream_time) ? audio_stream_time : video_stream_time;
+		//curr_video_time = audio_stream_time;
 	}
 	//This can be changed to make the video run faster or slower.
-	curr_video_time += Utility::deltaTime;
+	curr_video_time += 2 * Utility::deltaTime;
 }
 void VideoPlayer::Draw()
 {
@@ -198,10 +199,15 @@ void VideoPlayer::AudioCallback(void* userdata, Uint8* output_buffer, int buffer
 			stored_data_index = 0;
 			if (buffer_length == 0) return;
 		}
-		int retries = 2;
+		int retries = 8;
 		for (; retries > 0; retries--)
 		{
 			if (GetAudio(audio_buffer, &stored_data_size)) break;
+		}
+		//If still unable to get audio then nvrm.
+		if (stored_data_size == 0)
+		{
+			break;
 		}
 	}
 }
@@ -235,6 +241,7 @@ bool VideoPlayer::GetAudio(Uint8* audio_buffer, int* stored_size)
 
 	int ret = 0;
 	AVFrame* audioframe = av_frame_alloc();
+	if (audioframe == nullptr) return false;
 	int dst_samples = (*next_audio_frame)->channels * av_rescale_rnd(
 		swr_get_delay(resampler, (*next_audio_frame)->sample_rate)
 		+ (*next_audio_frame)->nb_samples,
@@ -261,7 +268,7 @@ bool VideoPlayer::GetAudio(Uint8* audio_buffer, int* stored_size)
 		dst_samples,
 		AV_SAMPLE_FMT_S16,
 		1);
-
+	if (ret < 0) return false;
 	swr_free(&resampler);
 
 	int stored_end_index{};
@@ -290,7 +297,9 @@ bool VideoPlayer::GetAudio(Uint8* audio_buffer, int* stored_size)
 	}
 	*stored_size = stored_end_index;
 	//TODO: free avframe "audioframe".
-
+	av_frame_unref(audioframe);
+	av_frame_free(&audioframe);
+	return true;
 }
 
 

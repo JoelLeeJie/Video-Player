@@ -26,6 +26,10 @@ class PacketData
 public:
 	PacketData();
 	~PacketData();
+
+	PacketData(const PacketData& toCopy) = delete;
+	PacketData& operator=(const PacketData& rhs) = delete;
+
 	AVPacket* packet = nullptr; //Need to alloc and dealloc.
 	//May be replaced by a single int and using bitwise | and & to check and add values.
 	bool codecReadArr[static_cast<int>(CodecType::END)]{}; //Default is false
