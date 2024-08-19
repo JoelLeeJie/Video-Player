@@ -152,6 +152,7 @@
     </ClCompile>
     <ClCompile Include="Utility.cpp" />
     <ClCompile Include="Video.cpp" />
+    <ClCompile Include="Windows.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Display.hpp" />
@@ -159,6 +160,7 @@
     <ClInclude Include="types.hpp" />
     <ClInclude Include="Utility.hpp" />
     <ClInclude Include="Video.hpp" />
+    <ClInclude Include="Windows.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
