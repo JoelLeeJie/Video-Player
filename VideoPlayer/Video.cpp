@@ -17,6 +17,8 @@
 #include <iostream>
 
 void* buffer_to_free = nullptr;
+//If it's seeked backwards(0 for video, 1 for audio stream) then it ignores the current stream timestamp and gets the frame(even if current timestamp > video_time) in order to update to the new(lower) timestamp.
+bool isSeekedBackwards[2]; 
 
 /*---------------------------
 VideoPlayer class variables*/
@@ -34,6 +36,7 @@ bool VideoPlayer::Initialize(std::string video_filepath)
 	//If initialization is unsuccessful, it indicates to not run VideoPlayer::Update and Draw loop.
 	//If successful, set it to true at the end.
 	isRun_Video = false;
+	isSeekedBackwards[0] = false; isSeekedBackwards[1] = false;
 	//=======Initialize video file.
 	VideoPlayer::video_filepath = video_filepath;
 	video_file = new VideoFile{ video_filepath };
@@ -100,7 +103,7 @@ void VideoPlayer::Update()
 		//Get the stream timestamp to compare to the actual video timestamp.
 		stream_timestamp = video_file->GetCurrentPTSTIME(CodecType::VIDEOCODEC);
 		//Get the next frame when it's time.
-		if (stream_timestamp < curr_video_time)
+		if (stream_timestamp < curr_video_time || isSeekedBackwards[0])
 		{
 			next_video_frame = video_file->GetFrame(CodecType::VIDEOCODEC);
 			//It may fail sometimes, retry for X num of times before giving up.
@@ -110,6 +113,7 @@ void VideoPlayer::Update()
 			}
 			if (next_video_frame)
 			{
+				isSeekedBackwards[0] = false;
 				video_file->ResizeVideoFrame(*next_video_frame, video_dimensions.w, video_dimensions.h);
 			}
 		}
@@ -170,7 +174,19 @@ void VideoPlayer::AudioCallback(void* userdata, Uint8* output_buffer, int buffer
 {
 	//Don't play audio if it's ahead of actual video time.
 	double stream_timestamp = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
-	if ((stream_timestamp > curr_video_time) || audio_stream_index == -1) return;
+	if (isSeekedBackwards[1])
+	{
+		isSeekedBackwards[1] = false;
+		stream_timestamp = 0;
+	}
+	if ((stream_timestamp > curr_video_time) || audio_stream_index == -1)
+	{
+		for (int i = 0; i < buffer_length; i++)
+		{
+			output_buffer[i] = 0;
+		}
+		return;
+	}
 
 	/*if (next_audio_frame == nullptr || (*next_audio_frame)->data[0] == nullptr || (*next_audio_frame)->data[0][0] == '\0') return;*/
 
@@ -386,8 +402,8 @@ bool VideoPlayer::InitializeAudioDevice(const AVCodecContext* audio_codec_contex
 
 void VideoPlayer::SeekVideo(double offset)
 {
-	int flag = (offset < 0) ? AVSEEK_FLAG_BACKWARD : 0;
-	flag = flag | AVSEEK_FLAG_ANY;
+	int flag = (offset < 0) ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_ANY;
+	//flag = flag | AVSEEK_FLAG_ANY;
 	double seek_target = curr_video_time;
 	seek_target += offset;
 	if (seek_target < 0) return;
@@ -396,6 +412,16 @@ void VideoPlayer::SeekVideo(double offset)
 
 	int64_t seek_target_timebase = seek_target * AV_TIME_BASE;
 	
+	//TODO: Issue with seeking backwards isn't the seeking part, but rather video_file->GetCurrentPTSTIME which returns a wrong value.
+	//To test this, simply set curr_video_time = 100 in Update(); and set seek_target to be 20 here. At like 25s, press back and it'll work fine.
+	//It returns a wrong value as it uses the currFrame's time. However, since seeking was done, the currFrame is not yet updated and so has a timestamp that is in the future. This blocks videostream from updating.
+	if (video_stream_index != -1)
+	{
+		int64_t video_seek_target = av_rescale_q(seek_target_timebase, av_make_q(1, AV_TIME_BASE), video_file->GetStreamData(video_stream_index).stream->time_base);
+		//Don't seek too far.
+		//if (video_seek_target > video_file->GetStreamData(video_stream_index).stream->duration) return;
+		ret_video = av_seek_frame(video_file->GetFormatContext(), video_stream_index, video_seek_target, flag);
+	}
 	if (audio_stream_index != -1)
 	{
 		//Conversion from double(in seconds) to stream->time_base.
@@ -406,13 +432,7 @@ void VideoPlayer::SeekVideo(double offset)
 		if (audio_seek_target > video_file->GetStreamData(audio_stream_index).stream->duration) return;
 		ret_audio = av_seek_frame(video_file->GetFormatContext(), audio_stream_index, audio_seek_target, flag);
 	}
-	if (video_stream_index != -1)
-	{
-		int64_t video_seek_target = av_rescale_q(seek_target_timebase, av_make_q(1, AV_TIME_BASE), video_file->GetStreamData(video_stream_index).stream->time_base);
-		//Don't seek too far.
-		//if (video_seek_target > video_file->GetStreamData(video_stream_index).stream->duration) return;
-		ret_video = av_seek_frame(video_file->GetFormatContext(), video_stream_index, video_seek_target, flag);
-	}
+
 	//If either seek is successful
 	if (ret_audio >= 0 || ret_video >= 0)
 	{
@@ -421,6 +441,7 @@ void VideoPlayer::SeekVideo(double offset)
 		//Flush buffers and clear leftover packets, basically start anew at the new timestamp.
 		video_file->ClearAllPackets();
 		video_file->FlushAllBuffers();
+		isSeekedBackwards[0] = isSeekedBackwards[1] = true;
 		std::cout << ret_audio << ret_video << std::endl;
 	}
 
