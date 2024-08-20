@@ -10,7 +10,7 @@
 #include "Display.hpp"
 #include "shobjidl_core.h"
 #include "Windows.hpp"
-
+#include <iostream>
 
 /*-----------------------
 Functions*/
@@ -18,6 +18,11 @@ bool InitializeSystem();
 void Update();
 void Draw();
 void FreeSystem();
+void Input();
+
+/*----------------------
+* Global varables*/
+bool isPaused = false;
 
 /*
 	Entry point of the program.
@@ -51,21 +56,14 @@ int main(int argc, char** argv)
 		//While video is running
 		while (VideoPlayer::isRun_Video && !quit)
 		{
-			static bool paused = false;
-			//SDL event handling.
-			//TODO: Pressing Spacebar toggles pause on and off.
-			SDL_PumpEvents();
-			const Uint8* keyboard = SDL_GetKeyboardState(nullptr);
-			if (keyboard[SDL_SCANCODE_SPACE])
-			{
-				paused = !paused;
-			}
+			Utility::UpdateDeltaTime();
+			Input();
 			//Closing window will cause both inner and outer loops to break after appropriate freeing of resources.
 			while (SDL_PollEvent(&sdl_event))
 			{
 				if (sdl_event.type == SDL_QUIT) quit = true;
 			}
-			if (paused) continue; //Don't continue updating or drawing.
+			if (isPaused) continue; //Don't continue updating or drawing.
 			Update();
 			Draw();
 		}
@@ -83,7 +81,6 @@ bool InitializeSystem()
 
 void Update()
 {
-	Utility::UpdateDeltaTime();
 	VideoPlayer::Update();
 }
 
@@ -95,4 +92,43 @@ void Draw()
 void FreeSystem()
 {
 	DisplayWindow::Free();
+}
+
+void Input()
+{
+	static float input_delay = 0;
+	//SDL event handling.
+	SDL_PumpEvents(); //check for new events.
+	const Uint8* keyboard = SDL_GetKeyboardState(nullptr);
+	if (input_delay <= 0)
+	{
+		if (keyboard[SDL_SCANCODE_SPACE])
+		{
+			input_delay = 0.2;
+			isPaused = !isPaused;
+			std::cout << "paused/unpaused\n";
+			if (isPaused)
+			{
+				if (VideoPlayer::audio_device != 0) SDL_PauseAudioDevice(VideoPlayer::audio_device, 1);
+			}
+			else
+			{
+				if (VideoPlayer::audio_device != 0) SDL_PauseAudioDevice(VideoPlayer::audio_device, 0);
+			}
+		}
+
+		//Seek right by 10s.
+		if (keyboard[SDL_SCANCODE_RIGHT])
+		{
+			input_delay = 0.2;
+			VideoPlayer::SeekVideo(10.0);
+		}
+		//Seek left by 10s.
+		if (keyboard[SDL_SCANCODE_LEFT])
+		{
+			input_delay = 0.2;
+			VideoPlayer::SeekVideo(-10.0);
+		}
+	}
+	input_delay -= Utility::deltaTime;
 }

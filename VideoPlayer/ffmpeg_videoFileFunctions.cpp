@@ -105,6 +105,20 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 	return &packetArr.back().packet;
 }
 
+void VideoFile::ClearAllPackets()
+{
+	packetArr.erase(packetArr.begin(), packetArr.end());
+}
+
+void VideoFile::FlushAllBuffers()
+{
+	for (StreamData& streamData : streamArr)
+	{
+		if (streamData.codecContext == nullptr) continue;
+		avcodec_flush_buffers(streamData.codecContext);
+	}
+}
+
 //Returns nullptr if unable to open video file.
 AVFormatContext* GetAVFormat(const std::string& fileName)
 {

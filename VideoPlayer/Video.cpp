@@ -27,6 +27,7 @@ double VideoPlayer::curr_video_time;
 int VideoPlayer::audio_stream_index, VideoPlayer::video_stream_index;
 AVFrame** VideoPlayer::next_audio_frame, ** VideoPlayer::next_video_frame;
 SDL_AudioSpec VideoPlayer::audio_device_specs;
+SDL_AudioDeviceID VideoPlayer::audio_device;
 
 bool VideoPlayer::Initialize(std::string video_filepath)
 {
@@ -123,6 +124,7 @@ void VideoPlayer::Update()
 		double audio_stream_time = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
 		double video_stream_time = video_file->GetCurrentPTSTIME(CodecType::VIDEOCODEC);
 		curr_video_time = (audio_stream_time < video_stream_time) ? audio_stream_time : video_stream_time;
+		std::cout << "Audio: " << audio_stream_time << " | Video: " << video_stream_time << " | TOTAL: " << curr_video_time << "\n";
 		//curr_video_time = audio_stream_time;
 	}
 	//This can be changed to make the video run faster or slower.
@@ -323,8 +325,8 @@ bool VideoPlayer::InitializeAudioDevice(const AVCodecContext* audio_codec_contex
 	want.samples = 1024;
 	want.userdata = (void*)audio_codec_context;
 	want.callback = VideoPlayer::AudioCallback;
-	static SDL_AudioDeviceID device = SDL_OpenAudioDevice(NULL, 0, &want, &audio_device_specs, 0);
-	if (device == 0)
+	audio_device = SDL_OpenAudioDevice(NULL, 0, &want, &audio_device_specs, 0);
+	if (audio_device == 0)
 	{
 		std::cout << SDL_GetError();
 		return false;
@@ -375,9 +377,52 @@ bool VideoPlayer::InitializeAudioDevice(const AVCodecContext* audio_codec_contex
 	/*SDL_QueueAudio(device,
 		(*audio_frame)->data[0],
 		(*audio_frame)->linesize[0]);*/
-	SDL_PauseAudioDevice(device, 0);
+	SDL_PauseAudioDevice(audio_device, 0);
 
 	//TODO: free avframe "audioframe".
 	//swr_free(&resampler);
 	//SDL_CloseAudioDevice(device);
+}
+
+void VideoPlayer::SeekVideo(double offset)
+{
+	int flag = (offset < 0) ? AVSEEK_FLAG_BACKWARD : 0;
+	flag = flag | AVSEEK_FLAG_ANY;
+	double seek_target = curr_video_time;
+	seek_target += offset;
+	if (seek_target < 0) return;
+
+	int ret_audio = -1, ret_video = -1;
+
+	int64_t seek_target_timebase = seek_target * AV_TIME_BASE;
+	
+	if (audio_stream_index != -1)
+	{
+		//Conversion from double(in seconds) to stream->time_base.
+		//As double * stream->time_base is not defined, av_rescale_q is used as a roundabout way of conversion.
+		//seek_target * AV_TIME_BASE --> / AV_TIME_BASE --> * stream->time_base.
+		int64_t audio_seek_target = av_rescale_q(seek_target_timebase, av_make_q(1, AV_TIME_BASE), video_file->GetStreamData(audio_stream_index).stream->time_base);
+		//Don't seek too far.
+		if (audio_seek_target > video_file->GetStreamData(audio_stream_index).stream->duration) return;
+		ret_audio = av_seek_frame(video_file->GetFormatContext(), audio_stream_index, audio_seek_target, flag);
+	}
+	if (video_stream_index != -1)
+	{
+		int64_t video_seek_target = av_rescale_q(seek_target_timebase, av_make_q(1, AV_TIME_BASE), video_file->GetStreamData(video_stream_index).stream->time_base);
+		//Don't seek too far.
+		//if (video_seek_target > video_file->GetStreamData(video_stream_index).stream->duration) return;
+		ret_video = av_seek_frame(video_file->GetFormatContext(), video_stream_index, video_seek_target, flag);
+	}
+	//If either seek is successful
+	if (ret_audio >= 0 || ret_video >= 0)
+	{
+		//Update new video time.
+		curr_video_time += offset;
+		//Flush buffers and clear leftover packets, basically start anew at the new timestamp.
+		video_file->ClearAllPackets();
+		video_file->FlushAllBuffers();
+		std::cout << ret_audio << ret_video << std::endl;
+	}
+
+	
 }

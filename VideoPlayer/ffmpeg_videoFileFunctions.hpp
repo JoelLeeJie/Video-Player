@@ -91,6 +91,8 @@ public:
 	*/
 	double GetCurrentPTSTIME(CodecType codecType);
 	
+	
+
 	/*Returns -1 if none found*/
 	int GetAudioStreamIndex();
 
@@ -113,9 +115,21 @@ public:
 	AVPacket** GetPacket(CodecType codec, bool isClearPackets = false);
 
 	/*
+		Clear all packets from queue, read or unread.
+	*/
+	void ClearAllPackets();
+
+	/*
+		Flush codec buffers
+	*/
+	void FlushAllBuffers();
+
+	/*
 		Returns stream data.
 	*/
 	StreamData GetStreamData(int stream_index);
+
+	AVFormatContext* GetFormatContext() { return videoContainer; }
 
 private:
 	AVFormatContext* videoContainer = nullptr;

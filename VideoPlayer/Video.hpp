@@ -33,7 +33,7 @@ static class VideoPlayer
 
 public:
 	static bool isRun_Video;
-
+	static SDL_AudioDeviceID audio_device;
 	/*Requires DisplayWindow to be initialized.
 	Called once every time a new video file is to be played.*/
 	static bool Initialize(std::string video_filepath);
@@ -43,5 +43,7 @@ public:
 	static void AudioCallback(void* userdata, Uint8* buffer, int buffer_length);
 	static bool InitializeAudioDevice(const AVCodecContext* audio_codec_context);
 	static bool GetAudio(Uint8* audio_buffer, int* stored_size);
+
+	static void SeekVideo(double offset);
 };
 
