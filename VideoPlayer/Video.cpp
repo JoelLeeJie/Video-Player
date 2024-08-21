@@ -40,7 +40,7 @@ bool VideoPlayer::Initialize(std::string video_filepath)
 	//=======Initialize video file.
 	VideoPlayer::video_filepath = video_filepath;
 	video_file = new VideoFile{ video_filepath };
-	curr_video_time = 0.0;
+	curr_video_time = 0.001;
 	//=======Check if video_file is successfully created.
 	const VideoFileError* errorChecker;
 	if (errorChecker = video_file->checkIsValid())
@@ -187,7 +187,6 @@ void VideoPlayer::AudioCallback(void* userdata, Uint8* output_buffer, int buffer
 		}
 		return;
 	}
-
 	/*if (next_audio_frame == nullptr || (*next_audio_frame)->data[0] == nullptr || (*next_audio_frame)->data[0][0] == '\0') return;*/
 
 	//Stores excess audio data until next callback. 192000 is the max data size for audio codec in ffmpeg, so just make it 200000 jic.
@@ -402,7 +401,7 @@ bool VideoPlayer::InitializeAudioDevice(const AVCodecContext* audio_codec_contex
 
 void VideoPlayer::SeekVideo(double offset)
 {
-	int flag = (offset < 0) ? AVSEEK_FLAG_BACKWARD : AVSEEK_FLAG_ANY;
+	int flag = (offset < 0) ? AVSEEK_FLAG_BACKWARD : 0;
 	//flag = flag | AVSEEK_FLAG_ANY;
 	double seek_target = curr_video_time;
 	seek_target += offset;
@@ -441,8 +440,10 @@ void VideoPlayer::SeekVideo(double offset)
 		//Flush buffers and clear leftover packets, basically start anew at the new timestamp.
 		video_file->ClearAllPackets();
 		video_file->FlushAllBuffers();
-		isSeekedBackwards[0] = isSeekedBackwards[1] = true;
-		std::cout << ret_audio << ret_video << std::endl;
+		if (offset < 0)
+		{
+			isSeekedBackwards[0] = isSeekedBackwards[1] = true;
+		}
 	}
 
 	
