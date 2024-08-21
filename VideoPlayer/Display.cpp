@@ -98,8 +98,8 @@ bool DisplayWindow::Initialize()
 	}
 
 	//Temporary starting dimensions of program's window.
-	window_dimensions[0] = 1400;
-	window_dimensions[1] = 700;
+	window_dimensions[0] = 1422;
+	window_dimensions[1] = 800;
 
 	//Initialize the basic window/renderer/texture/rect to draw video on.
 	mainWindow = SDL_CreateWindow("Joel's Video Player", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_dimensions[0], window_dimensions[1], SDL_WINDOW_RESIZABLE);

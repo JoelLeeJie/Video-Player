@@ -1,2 +1,0 @@
-C:\Users\onwin\source\repos\VideoPlayer\bin\VideoPlayer.exe.lastcodeanalysissucceeded
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\x64\Debug\NativeCodeAnalysis.read.1.tlog
