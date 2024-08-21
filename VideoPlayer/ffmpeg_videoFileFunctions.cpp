@@ -8,7 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-
+bool isFlush[5]{ false, false, false, false, false };
 
 PacketData::PacketData()
 {
@@ -32,7 +32,6 @@ PacketData::~PacketData()
 
 AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 {
-
 	//TODO: using a list may be more efficient when removing front element.
 	//Update packet queue and remove packets which were read by all codecs.
 
@@ -107,15 +106,15 @@ AVPacket** VideoFile::GetPacket(CodecType codecType, bool isClearPackets)
 
 void VideoFile::ClearAllPackets()
 {
-	packetArr.erase(packetArr.begin(), packetArr.end());
+	packetArr.clear();
 }
 
 void VideoFile::FlushAllBuffers()
 {
-	for (StreamData& streamData : streamArr)
+	//Don't flush now, only flush when codec uses all packets and needs new ones.
+	for (int i = 0; i < 5; i++)
 	{
-		if (streamData.codecContext == nullptr) continue;
-		avcodec_flush_buffers(streamData.codecContext);
+		isFlush[i] = true;
 	}
 }
 
@@ -266,6 +265,12 @@ AVFrame** VideoFile::GetFrame(CodecType codecType)
 	}
 	StreamData& stream = streamArr[index];
 	int errVal{};
+	//Check if codec needs to be flushed(after seeking)
+	if (isFlush[index])
+	{
+		isFlush[index] = false;
+		avcodec_flush_buffers(stream.codecContext);
+	}
 	while ((errVal = avcodec_receive_frame(stream.codecContext, stream.currFrame)) != 0)
 	{
 		//Not successful,try to resolve.

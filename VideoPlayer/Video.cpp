@@ -127,7 +127,11 @@ void VideoPlayer::Update()
 	{
 		double audio_stream_time = video_file->GetCurrentPTSTIME(CodecType::AUDIOCODEC);
 		double video_stream_time = video_file->GetCurrentPTSTIME(CodecType::VIDEOCODEC);
-		curr_video_time = (audio_stream_time < video_stream_time) ? audio_stream_time : video_stream_time;
+		//Make sure curr_video_time doesn't get reset to 0 if cannot read a frame.
+		if (audio_stream_time != 0 && video_stream_time != 0)
+		{
+			curr_video_time = (audio_stream_time < video_stream_time) ? audio_stream_time : video_stream_time;
+		}
 		std::cout << "Audio: " << audio_stream_time << " | Video: " << video_stream_time << " | TOTAL: " << curr_video_time << "\n";
 		//curr_video_time = audio_stream_time;
 	}
@@ -411,16 +415,7 @@ void VideoPlayer::SeekVideo(double offset)
 
 	int64_t seek_target_timebase = seek_target * AV_TIME_BASE;
 	
-	//TODO: Issue with seeking backwards isn't the seeking part, but rather video_file->GetCurrentPTSTIME which returns a wrong value.
-	//To test this, simply set curr_video_time = 100 in Update(); and set seek_target to be 20 here. At like 25s, press back and it'll work fine.
-	//It returns a wrong value as it uses the currFrame's time. However, since seeking was done, the currFrame is not yet updated and so has a timestamp that is in the future. This blocks videostream from updating.
-	if (video_stream_index != -1)
-	{
-		int64_t video_seek_target = av_rescale_q(seek_target_timebase, av_make_q(1, AV_TIME_BASE), video_file->GetStreamData(video_stream_index).stream->time_base);
-		//Don't seek too far.
-		//if (video_seek_target > video_file->GetStreamData(video_stream_index).stream->duration) return;
-		ret_video = av_seek_frame(video_file->GetFormatContext(), video_stream_index, video_seek_target, flag);
-	}
+
 	if (audio_stream_index != -1)
 	{
 		//Conversion from double(in seconds) to stream->time_base.
@@ -430,6 +425,23 @@ void VideoPlayer::SeekVideo(double offset)
 		//Don't seek too far.
 		if (audio_seek_target > video_file->GetStreamData(audio_stream_index).stream->duration) return;
 		ret_audio = av_seek_frame(video_file->GetFormatContext(), audio_stream_index, audio_seek_target, flag);
+	}
+
+	//TODO: Issue with seeking to time = 59. e.g. 45s --> 55s, but it instead goes to 59s.
+	if (video_stream_index != -1)
+	{
+		int64_t video_seek_target = av_rescale_q(seek_target_timebase, av_make_q(1, AV_TIME_BASE), video_file->GetStreamData(video_stream_index).stream->time_base);
+		//double video_seek_time = (double)video_seek_target * ((double)video_file->GetStreamData(video_stream_index).stream->time_base.num / video_file->GetStreamData(video_stream_index).stream->time_base.den);
+		//if (video_seek_time > seek_target + 0.01)
+		//{
+		//	for (int i = 0; i < 100; i++)
+		//	{
+		//		std::cout << "MisMatch time\n";
+		//	}
+		//}
+		//Don't seek too far.
+		if (video_seek_target > video_file->GetStreamData(video_stream_index).stream->duration) return;
+		ret_video = av_seek_frame(video_file->GetFormatContext(), video_stream_index, video_seek_target, flag);
 	}
 
 	//If either seek is successful
