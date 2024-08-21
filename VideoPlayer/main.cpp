@@ -71,12 +71,14 @@ int main(int argc, char** argv)
 	}
 
 	FreeSystem();
+	return 0;
 }
 
 bool InitializeSystem()
 {
 	//Initialize the program's SDL window.
 	if (!DisplayWindow::Initialize()) return false;
+	return true;
 }
 
 void Update()
@@ -104,7 +106,7 @@ void Input()
 	{
 		if (keyboard[SDL_SCANCODE_SPACE])
 		{
-			input_delay = 0.2;
+			input_delay = 0.2f;
 			isPaused = !isPaused;
 			std::cout << "paused/unpaused\n";
 			if (isPaused)
@@ -120,15 +122,15 @@ void Input()
 		//Seek right by 10s.
 		if (keyboard[SDL_SCANCODE_RIGHT])
 		{
-			input_delay = 0.2;
+			input_delay = 0.2f;
 			VideoPlayer::SeekVideo(10.0);
 		}
 		//Seek left by 10s.
 		if (keyboard[SDL_SCANCODE_LEFT])
 		{
-			input_delay = 0.2;
+			input_delay = 0.2f;
 			VideoPlayer::SeekVideo(-10.0);
 		}
 	}
-	input_delay -= Utility::deltaTime;
+	input_delay -= static_cast<float>(Utility::deltaTime);
 }

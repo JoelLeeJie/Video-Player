@@ -263,12 +263,12 @@ bool VideoPlayer::GetAudio(Uint8* audio_buffer, int* stored_size)
 	int ret = 0;
 	AVFrame* audioframe = av_frame_alloc();
 	if (audioframe == nullptr) return false;
-	int dst_samples = (*next_audio_frame)->channels * av_rescale_rnd(
+	int dst_samples = static_cast<int>((*next_audio_frame)->channels * av_rescale_rnd(
 		swr_get_delay(resampler, (*next_audio_frame)->sample_rate)
 		+ (*next_audio_frame)->nb_samples,
 		44100,
 		(*next_audio_frame)->sample_rate,
-		AV_ROUND_UP);
+		AV_ROUND_UP));
 	uint8_t* audiobuf = NULL;
 	ret = av_samples_alloc(&audiobuf,
 		NULL,
@@ -397,6 +397,7 @@ bool VideoPlayer::InitializeAudioDevice(const AVCodecContext* audio_codec_contex
 		(*audio_frame)->data[0],
 		(*audio_frame)->linesize[0]);*/
 	SDL_PauseAudioDevice(audio_device, 0);
+	return true;
 
 	//TODO: free avframe "audioframe".
 	//swr_free(&resampler);
@@ -413,7 +414,7 @@ void VideoPlayer::SeekVideo(double offset)
 
 	int ret_audio = -1, ret_video = -1;
 
-	int64_t seek_target_timebase = seek_target * AV_TIME_BASE;
+	int64_t seek_target_timebase = static_cast<int64_t>(seek_target * AV_TIME_BASE);
 	
 
 	if (audio_stream_index != -1)

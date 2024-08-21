@@ -36,7 +36,7 @@ namespace DisplayUtility
 /*
 	Only one instance of this in the program. Controls the program's window.
 */
-static class DisplayWindow
+class DisplayWindow
 {
 	//The device dimensions and various parameters.
 	static SDL_DisplayMode device_dimensions;

@@ -345,7 +345,7 @@ double VideoFile::GetCurrentPTSTIME(CodecType codecType)
 		break;
 	}
 	if (streamArr[index].currFrame == nullptr || streamArr[index].currFrame->data[0] == nullptr) return 0;
-	int64_t pts = static_cast<double>(streamArr[index].currFrame->best_effort_timestamp);
+	int64_t pts = streamArr[index].currFrame->best_effort_timestamp;
 	if (pts >= 0)
 	{
 		return static_cast<double>(streamArr[index].stream->time_base.num / static_cast<double>(streamArr[index].stream->time_base.den) * static_cast<double>(streamArr[index].currFrame->best_effort_timestamp));

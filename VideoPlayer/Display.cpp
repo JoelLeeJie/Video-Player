@@ -120,6 +120,7 @@ bool DisplayWindow::Initialize()
 	}
 	//The actual dimensions the video can display in, for now is set to window_dimensions.
 	videoDisplayRect = { 0, 0, window_dimensions[0], window_dimensions[1] };
+	return true;
 }
 
 
@@ -185,17 +186,17 @@ namespace DisplayUtility
 		if (videoDimensions.w > limitDimensions.w)
 		{
 			videoDimensions.w = limitDimensions.w;
-			videoDimensions.h = videoDimensions.w / aspectRatio_widthHeight;
+			videoDimensions.h = static_cast<int>(videoDimensions.w / aspectRatio_widthHeight);
 		}
 		//Limit the height. Note that this comes after it's already limited by above.
 		if (videoDimensions.h > limitDimensions.h)
 		{
 			videoDimensions.h = limitDimensions.h;
-			videoDimensions.w = videoDimensions.h * aspectRatio_widthHeight;
+			videoDimensions.w = static_cast<int>(videoDimensions.h * aspectRatio_widthHeight);
 		}
 		//Center video if it doesn't fit perfectly.
-		videoDimensions.x = limitDimensions.x + (limitDimensions.w - videoDimensions.w) / 2.0;
-		videoDimensions.y = limitDimensions.y + (limitDimensions.h - videoDimensions.h) / 2.0;
+		videoDimensions.x = limitDimensions.x + static_cast<int>((limitDimensions.w - videoDimensions.w) / 2.0f);
+		videoDimensions.y = limitDimensions.y + static_cast<int>((limitDimensions.h - videoDimensions.h) / 2.0f);
 
 		return videoDimensions;
 	}

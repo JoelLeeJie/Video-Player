@@ -17,7 +17,7 @@
 	There'll only be one instance of this class, representing the current video being played.
 	Does not only control reading of data from file, but also displaying of data to window. 
 */
-static class VideoPlayer
+class VideoPlayer
 {
 	static std::string video_filepath;
 	//The file to read data from.

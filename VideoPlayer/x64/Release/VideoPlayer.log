@@ -1,38 +1,10 @@
-﻿  ffmpeg_videoFileFunctions.cpp
-  main.cpp
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(46,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.hpp(84,2): warning C4091: 'static ': ignored on left of 'DisplayWindow' when no variable is declared
+﻿  Display.cpp
   Video.cpp
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.hpp(46,2): warning C4091: 'static ': ignored on left of 'VideoPlayer' when no variable is declared
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Display.hpp(84,2): warning C4091: 'static ': ignored on left of 'DisplayWindow' when no variable is declared
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(245,18): warning C4244: 'initializing': conversion from 'int64_t' to 'int', possible loss of data
-  Windows.cpp
-C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.37.32822\include\xstring(2728,53): warning C4244: 'argument': conversion from 'wchar_t' to 'const _Elem', possible loss of data
-          with
-          [
-              _Elem=char
-          ]
-C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.37.32822\include\xstring(2584,17): message : see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<char>>::_Construct_from_iter<wchar_t*,wchar_t*,_Size_type>(_Iter,const _Sent,_Size)' being compiled
-          with
-          [
-              _Size_type=unsigned __int64,
-              _Iter=wchar_t *,
-              _Sent=wchar_t *,
-              _Size=unsigned __int64
-          ]
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Windows.cpp(40,50): message : see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Windows.cpp(40,37): message : see the first reference to 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string' in 'BasicFileOpen'
+  ffmpeg_videoFileFunctions.cpp
+  main.cpp
   Generating code
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\Video.cpp(383): warning C4715: 'VideoPlayer::InitializeAudioDevice': not all control paths return a value
-C:\Users\onwin\source\repos\VideoPlayer\VideoPlayer\main.cpp(76): warning C4715: 'SDL_main': not all control paths return a value
-  113 of 358 functions (31.6%) were compiled, the rest were copied from previous compilation.
-    76 functions were new in current compilation
-    58 functions had inline decision re-evaluated but remain unchanged
+  45 of 366 functions (12.3%) were compiled, the rest were copied from previous compilation.
+    8 functions were new in current compilation
+    8 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   VideoPlayer.vcxproj -> C:\Users\onwin\source\repos\VideoPlayer\bin\VideoPlayer.exe
