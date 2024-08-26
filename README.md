@@ -9,7 +9,9 @@ A full Audio and Visual Video Player that has basic features
 
 Created using FFmpeg (video encoder) and SDL2 (output), in C++.
 
-To run: Clone the repo, open .sln and click run.  
 More Projects at 
 - https://github.com/JoelLeeJie/Personal-Showcase
 - https://www.youtube.com/playlist?list=PL3v4AEQxsf2Oesvkm0B3S9gZYKGmHnUMD
+
+======  
+To run: Clone the repo, open .sln and click run.  
