@@ -7,7 +7,7 @@ A full Audio and Visual Video Player that has basic features
 - Seek forward/backward
 - Pause/Play
 
-Created using FFmpeg (video encoder) and SDL2 (output), in C++.
+Created using FFmpeg (video decoder) and SDL2 (output), in C++.
 
 More Projects at 
 - https://github.com/JoelLeeJie/Personal-Showcase
